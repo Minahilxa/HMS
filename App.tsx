@@ -45,7 +45,8 @@ const App: React.FC = () => {
       
       if (token && savedUser) {
         try {
-          setCurrentUser(JSON.parse(savedUser));
+          const user = JSON.parse(savedUser);
+          setCurrentUser(user);
           setIsLoggedIn(true);
         } catch (e) {
           handleLogout();
@@ -73,8 +74,8 @@ const App: React.FC = () => {
       setDoctors(data.doctors);
       setEmergencyCases(data.emergencyCases);
     } catch (err: any) {
-      console.error('Data Load Failed:', err);
-      setError("Failed to sync with clinical server. Please ensure the backend is running.");
+      console.error('Data Sync Error:', err);
+      setError("Clinical Server Connection Failed. Please ensure the backend is running at http://localhost:5000 and MongoDB is active.");
     } finally {
       setLoading(false);
     }
@@ -92,23 +93,30 @@ const App: React.FC = () => {
     setIsLoggedIn(false);
     setCurrentUser(null);
     setStats(null);
+    setLoading(false);
   };
 
-  if (!isLoggedIn) return <LoginPage onLogin={handleLogin} />;
+  if (!isLoggedIn && !loading) return <LoginPage onLogin={handleLogin} />;
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-screen bg-slate-50 space-y-4">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600"></div>
-      <p className="text-slate-500 font-medium tracking-wide uppercase text-[10px]">Synchronizing HIS Data...</p>
+      <p className="text-slate-500 font-medium tracking-wide uppercase text-[10px]">Synchronizing Clinical Data...</p>
     </div>
   );
 
   const renderContent = () => {
     if (error) return (
-      <div className="p-8 text-center bg-white rounded-3xl border border-red-100 shadow-sm">
-        <div className="text-red-500 font-bold mb-2">Connectivity Error</div>
-        <p className="text-slate-500 mb-4">{error}</p>
-        <button onClick={loadData} className="px-4 py-2 bg-sky-600 text-white rounded-xl text-sm font-bold">Retry Sync</button>
+      <div className="flex flex-col items-center justify-center min-h-[400px] p-8 text-center bg-white rounded-3xl border border-red-100 shadow-xl max-w-2xl mx-auto mt-20">
+        <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-6">
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+        </div>
+        <h2 className="text-xl font-bold text-slate-800 mb-2">Sync Interrupted</h2>
+        <p className="text-slate-500 mb-8 max-w-md">{error}</p>
+        <div className="flex gap-4">
+          <button onClick={loadData} className="px-6 py-3 bg-sky-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-sky-100 hover:bg-sky-700 transition-all">Retry Sync</button>
+          <button onClick={handleLogout} className="px-6 py-3 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all">Return to Login</button>
+        </div>
       </div>
     );
 
