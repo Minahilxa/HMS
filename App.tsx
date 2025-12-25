@@ -19,14 +19,11 @@ import CommunicationManagement from './pages/CommunicationManagement';
 import SettingsSecurity from './pages/SettingsSecurity';
 import { apiService } from './services/apiService';
 import { 
-  Patient, 
-  Appointment, 
   Doctor, 
   EmergencyCase, 
   RevenueData, 
   DashboardStats, 
-  User, 
-  UserRole 
+  User 
 } from './types';
 
 const App: React.FC = () => {
@@ -34,6 +31,7 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [revenue, setRevenue] = useState<RevenueData[]>([]);
@@ -41,7 +39,7 @@ const App: React.FC = () => {
   const [emergencyCases, setEmergencyCases] = useState<EmergencyCase[]>([]);
 
   useEffect(() => {
-    const checkSession = async () => {
+    const checkSession = () => {
       const token = localStorage.getItem('his_token');
       const savedUser = localStorage.getItem('his_user');
       
@@ -66,19 +64,17 @@ const App: React.FC = () => {
   }, [isLoggedIn]);
 
   const loadData = async () => {
-    // Only set loading if we don't have stats yet
-    if (!stats) setLoading(true);
-    
+    setLoading(true);
+    setError(null);
     try {
-      // PERFORMANCE FIX: One single optimized call instead of 4 separate parallel ones
       const data = await apiService.getInitDashboard();
-      
       setStats(data.stats);
       setRevenue(data.revenue);
       setDoctors(data.doctors);
       setEmergencyCases(data.emergencyCases);
-    } catch (error) {
-      console.error('Data Load Failed:', error);
+    } catch (err: any) {
+      console.error('Data Load Failed:', err);
+      setError("Failed to sync with clinical server. Please ensure the backend is running.");
     } finally {
       setLoading(false);
     }
@@ -88,7 +84,6 @@ const App: React.FC = () => {
     localStorage.setItem('his_user', JSON.stringify(user));
     setCurrentUser(user);
     setIsLoggedIn(true);
-    // Data loading will be triggered by the useEffect observing isLoggedIn
   };
 
   const handleLogout = () => {
@@ -101,11 +96,19 @@ const App: React.FC = () => {
 
   if (!isLoggedIn) return <LoginPage onLogin={handleLogin} />;
 
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center h-screen bg-slate-50 space-y-4">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600"></div>
+      <p className="text-slate-500 font-medium tracking-wide uppercase text-[10px]">Synchronizing HIS Data...</p>
+    </div>
+  );
+
   const renderContent = () => {
-    if (loading) return (
-      <div className="flex flex-col items-center justify-center h-full space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600"></div>
-        <p className="text-slate-500 font-medium tracking-wide uppercase text-[10px]">Initializing Session...</p>
+    if (error) return (
+      <div className="p-8 text-center bg-white rounded-3xl border border-red-100 shadow-sm">
+        <div className="text-red-500 font-bold mb-2">Connectivity Error</div>
+        <p className="text-slate-500 mb-4">{error}</p>
+        <button onClick={loadData} className="px-4 py-2 bg-sky-600 text-white rounded-xl text-sm font-bold">Retry Sync</button>
       </div>
     );
 

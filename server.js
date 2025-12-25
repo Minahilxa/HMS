@@ -153,6 +153,9 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Users
+app.get('/api/users', authenticate, async (req, res) => res.json(await User.find()));
+
 // Dashboard
 app.get('/api/init-dashboard', authenticate, async (req, res) => {
   try {
