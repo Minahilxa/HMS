@@ -15,7 +15,6 @@ const CommunicationManagement: React.FC = () => {
   // Modals
   const [showAnnModal, setShowAnnModal] = useState(false);
   const [showSMSModal, setShowSMSModal] = useState(false);
-  const [showEmailModal, setShowEmailModal] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -23,17 +22,22 @@ const CommunicationManagement: React.FC = () => {
 
   const loadData = async () => {
     setLoading(true);
-    const [ann, s, e, pts] = await Promise.all([
-      apiService.getInternalAnnouncements(),
-      apiService.getSMSLogs(),
-      apiService.getEmailLogs(),
-      apiService.getPatients()
-    ]);
-    setAnnouncements(ann);
-    setSmsLogs(s);
-    setEmailLogs(e);
-    setPatients(pts);
-    setLoading(false);
+    try {
+      const [ann, s, e, pts] = await Promise.all([
+        apiService.getInternalAnnouncements(),
+        apiService.getSMSLogs(),
+        apiService.getEmailLogs(),
+        apiService.getPatients()
+      ]);
+      setAnnouncements(ann);
+      setSmsLogs(s);
+      setEmailLogs(e);
+      setPatients(pts);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCreateAnnouncement = async (e: React.FormEvent<HTMLFormElement>) => {

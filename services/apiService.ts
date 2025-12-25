@@ -1,725 +1,447 @@
 
+import { API_BASE, handleResponse, getHeaders } from '../api_config';
 import { 
-  mockPatients, 
-  mockAppointments, 
-  mockDoctors, 
-  mockEmergency, 
-  mockRevenue,
-  mockUsers,
-  mockLeaves,
-  mockPerformances,
-  mockDepartments,
-  mockServices,
-  mockSlots,
-  mockLabTests,
-  mockLabSamples,
-  mockAccessHistory,
-  mockRadiologyOrders,
-  mockPharmacyInventory,
-  mockPharmacySales,
-  mockPharmacySuppliers,
-  mockInvoices,
-  mockInsurancePanels,
-  mockInsuranceClaims,
-  mockPatientCoverage,
-  mockCMSPages,
-  mockCMSBlogs,
-  mockCMSSliders,
-  mockCMSSEO,
-  mockPatientGrowth,
-  mockCustomReports,
-  mockAnnouncements,
-  mockSMSLogs,
-  mockEmailLogs,
-  mockHospitalSettings,
-  mockEmergencyNumbers,
-  mockPaymentGateways,
-  mockBackupLogs,
-  mockSecuritySettings
-} from './mockData';
-import { DashboardStats, PatientStatus, User, UserRole, LeaveRequest, DoctorPerformance, Patient, EHRRecord, Prescription, Appointment, HospitalDepartment, HospitalService, TimeSlot, LabTest, LabSample, AccessHistory, RadiologyOrder, PharmacyItem, PharmacySale, PharmacySupplier, Invoice, BillingCategory, InsurancePanel, InsuranceClaim, PatientCoverage, CMSPage, CMSBlog, CMSSlider, CMSSEOSetting, Doctor, PatientGrowthEntry, CustomReport, InternalAnnouncement, SMSLog, EmailLog, HospitalSettings, EmergencyNumber, PaymentGateway, BackupLog, SecuritySetting } from '../types';
+  DashboardStats, PatientStatus, User, UserRole, LeaveRequest, 
+  DoctorPerformance, Patient, EHRRecord, Prescription, Appointment, 
+  HospitalDepartment, HospitalService, TimeSlot, LabTest, LabSample, 
+  AccessHistory, RadiologyOrder, PharmacyItem, PharmacySale, 
+  PharmacySupplier, Invoice, BillingCategory, InsurancePanel, 
+  InsuranceClaim, PatientCoverage, CMSPage, CMSBlog, CMSSlider, 
+  CMSSEOSetting, Doctor, PatientGrowthEntry, CustomReport, 
+  InternalAnnouncement, SMSLog, EmailLog, HospitalSettings, 
+  EmergencyNumber, PaymentGateway, BackupLog, SecuritySetting,
+  EmergencyCase
+} from '../types';
 
 class ApiService {
+  // Authentication
+  async login(credentials: any): Promise<{ user: User; token: string }> {
+    return fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(credentials),
+    }).then(handleResponse);
+  }
+
+  // Dashboard & Analytics
   async getDashboardStats(): Promise<DashboardStats> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return {
-      dailyAppointments: mockAppointments.length,
-      opdPatients: mockPatients.filter(p => p.status === PatientStatus.OPD).length,
-      ipdPatients: mockPatients.filter(p => p.status === PatientStatus.IPD).length,
-      emergencyCases: mockEmergency.length,
-      totalRevenue: mockRevenue.reduce((acc, curr) => acc + curr.amount, 0),
-      doctorsOnDuty: mockDoctors.filter(d => d.status === 'On Duty').length
-    };
+    return fetch(`${API_BASE}/analytics/dashboard-stats`, { headers: getHeaders() }).then(handleResponse);
   }
 
-  // Settings & Security Module
-  async getHospitalSettings(): Promise<HospitalSettings> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return { ...mockHospitalSettings };
+  async getRevenueSummary(): Promise<any[]> {
+    return fetch(`${API_BASE}/analytics/revenue`, { headers: getHeaders() }).then(handleResponse);
   }
 
-  async updateHospitalSettings(updates: Partial<HospitalSettings>): Promise<boolean> {
-    Object.assign(mockHospitalSettings, updates);
-    return true;
-  }
-
-  async getEmergencyNumbers(): Promise<EmergencyNumber[]> {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    return [...mockEmergencyNumbers];
-  }
-
-  async updateEmergencyNumber(id: string, updates: Partial<EmergencyNumber>): Promise<boolean> {
-    const idx = mockEmergencyNumbers.findIndex(en => en.id === id);
-    if (idx !== -1) {
-      mockEmergencyNumbers[idx] = { ...mockEmergencyNumbers[idx], ...updates };
-      return true;
-    }
-    return false;
-  }
-
-  async getPaymentGateways(): Promise<PaymentGateway[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockPaymentGateways];
-  }
-
-  async updatePaymentGateway(id: string, updates: Partial<PaymentGateway>): Promise<boolean> {
-    const idx = mockPaymentGateways.findIndex(pg => pg.id === id);
-    if (idx !== -1) {
-      mockPaymentGateways[idx] = { ...mockPaymentGateways[idx], ...updates };
-      return true;
-    }
-    return false;
-  }
-
-  async getBackupLogs(): Promise<BackupLog[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockBackupLogs];
-  }
-
-  async runManualBackup(): Promise<BackupLog> {
-    const newBackup: BackupLog = {
-      id: `B${mockBackupLogs.length + 1}`,
-      timestamp: new Date().toLocaleString(),
-      size: '4.1 GB',
-      status: 'Success',
-      type: 'Manual'
-    };
-    mockBackupLogs.unshift(newBackup);
-    return newBackup;
-  }
-
-  async getSecuritySettings(): Promise<SecuritySetting[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockSecuritySettings];
-  }
-
-  async toggleSecuritySetting(id: string): Promise<boolean> {
-    const setting = mockSecuritySettings.find(s => s.id === id);
-    if (setting) {
-      setting.isEnabled = !setting.isEnabled;
-      return true;
-    }
-    return false;
-  }
-
-  // Communication Module
-  async getInternalAnnouncements(): Promise<InternalAnnouncement[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockAnnouncements];
-  }
-
-  async createAnnouncement(data: Partial<InternalAnnouncement>): Promise<InternalAnnouncement> {
-    const newAnn: InternalAnnouncement = {
-      id: `ANN-${Math.random().toString(36).substr(2, 3).toUpperCase()}`,
-      title: data.title || 'Untitled',
-      content: data.content || '',
-      priority: data.priority || 'Medium',
-      targetAudience: data.targetAudience || 'All Staff',
-      date: new Date().toISOString().split('T')[0],
-      author: 'Super Admin'
-    };
-    mockAnnouncements.unshift(newAnn);
-    return newAnn;
-  }
-
-  async deleteAnnouncement(id: string): Promise<boolean> {
-    const idx = mockAnnouncements.findIndex(a => a.id === id);
-    if (idx !== -1) {
-      mockAnnouncements.splice(idx, 1);
-      return true;
-    }
-    return false;
-  }
-
-  async getSMSLogs(): Promise<SMSLog[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockSMSLogs];
-  }
-
-  async sendSMS(data: Partial<SMSLog>): Promise<SMSLog> {
-    const newLog: SMSLog = {
-      id: `SMS-${Math.random().toString(36).substr(2, 3).toUpperCase()}`,
-      patientName: data.patientName || 'Generic Patient',
-      phoneNumber: data.phoneNumber || 'N/A',
-      message: data.message || '',
-      status: 'Sent',
-      timestamp: new Date().toLocaleString(),
-      type: data.type || 'General'
-    };
-    mockSMSLogs.unshift(newLog);
-    return newLog;
-  }
-
-  async getEmailLogs(): Promise<EmailLog[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockEmailLogs];
-  }
-
-  async sendEmail(data: Partial<EmailLog>): Promise<EmailLog> {
-    const newLog: EmailLog = {
-      id: `EM-${Math.random().toString(36).substr(2, 3).toUpperCase()}`,
-      patientName: data.patientName || 'Generic Patient',
-      email: data.email || 'N/A',
-      subject: data.subject || 'HealSync Alert',
-      status: 'Sent',
-      timestamp: new Date().toLocaleString(),
-      type: data.type || 'Newsletter'
-    };
-    mockEmailLogs.unshift(newLog);
-    return newLog;
-  }
-
-  // Reports & Analytics Module
   async getPatientGrowthStats(): Promise<PatientGrowthEntry[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockPatientGrowth];
-  }
-
-  async getCustomReports(): Promise<CustomReport[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockCustomReports];
-  }
-
-  async createCustomReport(report: Partial<CustomReport>): Promise<CustomReport> {
-    const newReport: CustomReport = {
-      id: `REP-${Math.random().toString(36).substr(2, 3).toUpperCase()}`,
-      name: report.name || 'New Analytics View',
-      type: report.type || 'Revenue',
-      dateRange: report.dateRange || 'Current Month',
-      filters: report.filters || 'None',
-      createdBy: 'Super Admin'
-    };
-    mockCustomReports.push(newReport);
-    return newReport;
-  }
-
-  async deleteCustomReport(id: string): Promise<boolean> {
-    const idx = mockCustomReports.findIndex(r => r.id === id);
-    if (idx !== -1) {
-      mockCustomReports.splice(idx, 1);
-      return true;
-    }
-    return false;
-  }
-
-  // CMS Module
-  async getCMSPages(): Promise<CMSPage[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockCMSPages];
-  }
-
-  async updateCMSPage(id: string, updates: Partial<CMSPage>): Promise<boolean> {
-    const idx = mockCMSPages.findIndex(p => p.id === id);
-    if (idx !== -1) {
-      mockCMSPages[idx] = { ...mockCMSPages[idx], ...updates, lastUpdated: new Date().toISOString().split('T')[0] };
-      return true;
-    }
-    return false;
-  }
-
-  async getCMSBlogs(): Promise<CMSBlog[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockCMSBlogs];
-  }
-
-  async createCMSBlog(blog: Partial<CMSBlog>): Promise<CMSBlog> {
-    const newBlog: CMSBlog = {
-      id: `BLOG-${Math.random().toString(36).substr(2, 3).toUpperCase()}`,
-      title: blog.title || 'New Post',
-      author: blog.author || 'Admin',
-      category: blog.category || 'General',
-      date: new Date().toISOString().split('T')[0],
-      image: blog.image || 'default.jpg',
-      excerpt: blog.excerpt || '',
-      status: 'Draft'
-    };
-    mockCMSBlogs.push(newBlog);
-    return newBlog;
-  }
-
-  async updateCMSBlog(id: string, updates: Partial<CMSBlog>): Promise<boolean> {
-    const idx = mockCMSBlogs.findIndex(b => b.id === id);
-    if (idx !== -1) {
-      mockCMSBlogs[idx] = { ...mockCMSBlogs[idx], ...updates };
-      return true;
-    }
-    return false;
-  }
-
-  async getCMSSliders(): Promise<CMSSlider[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockCMSSliders];
-  }
-
-  async updateCMSSlider(id: string, updates: Partial<CMSSlider>): Promise<boolean> {
-    const idx = mockCMSSliders.findIndex(s => s.id === id);
-    if (idx !== -1) {
-      mockCMSSliders[idx] = { ...mockCMSSliders[idx], ...updates };
-      return true;
-    }
-    return false;
-  }
-
-  async getCMSSEO(): Promise<CMSSEOSetting[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockCMSSEO];
-  }
-
-  async updateCMSSEO(id: string, updates: Partial<CMSSEOSetting>): Promise<boolean> {
-    const idx = mockCMSSEO.findIndex(s => s.id === id);
-    if (idx !== -1) {
-      mockCMSSEO[idx] = { ...mockCMSSEO[idx], ...updates };
-      return true;
-    }
-    return false;
-  }
-
-  async updateDoctorCMS(id: string, updates: Partial<Doctor>): Promise<boolean> {
-    const idx = mockDoctors.findIndex(d => d.id === id);
-    if (idx !== -1) {
-      mockDoctors[idx] = { ...mockDoctors[idx], ...updates };
-      return true;
-    }
-    return false;
-  }
-
-  // Insurance Module
-  async getInsurancePanels(): Promise<InsurancePanel[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockInsurancePanels];
-  }
-
-  async createInsurancePanel(data: Partial<InsurancePanel>): Promise<InsurancePanel> {
-    const newPanel: InsurancePanel = {
-      id: `PANEL-${Math.random().toString(36).substr(2, 3).toUpperCase()}`,
-      name: data.name || 'New Panel',
-      code: data.code || 'CODE-X',
-      contactPerson: data.contactPerson || '',
-      email: data.email || '',
-      phone: data.phone || '',
-      settlementPeriod: data.settlementPeriod || 30,
-      status: 'Active'
-    };
-    mockInsurancePanels.push(newPanel);
-    return newPanel;
-  }
-
-  async updateInsurancePanel(id: string, updates: Partial<InsurancePanel>): Promise<boolean> {
-    const idx = mockInsurancePanels.findIndex(p => p.id === id);
-    if (idx !== -1) {
-      mockInsurancePanels[idx] = { ...mockInsurancePanels[idx], ...updates };
-      return true;
-    }
-    return false;
-  }
-
-  async getInsuranceClaims(): Promise<InsuranceClaim[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockInsuranceClaims];
-  }
-
-  async updateClaimStatus(id: string, updates: Partial<InsuranceClaim>): Promise<boolean> {
-    const idx = mockInsuranceClaims.findIndex(c => c.id === id);
-    if (idx !== -1) {
-      mockInsuranceClaims[idx] = { ...mockInsuranceClaims[idx], ...updates };
-      return true;
-    }
-    return false;
-  }
-
-  async getPatientCoverage(patientId: string): Promise<PatientCoverage[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return mockPatientCoverage.filter(c => c.patientId === patientId);
-  }
-
-  async createPatientCoverage(data: Partial<PatientCoverage>): Promise<PatientCoverage> {
-    const newCov: PatientCoverage = {
-      id: `COV-${Math.random().toString(36).substr(2, 3).toUpperCase()}`,
-      patientId: data.patientId || '1',
-      panelId: data.panelId || 'PANEL1',
-      policyNumber: data.policyNumber || 'POL-XYZ',
-      totalLimit: data.totalLimit || 5000,
-      consumedLimit: 0,
-      expiryDate: data.expiryDate || '2025-12-31',
-      status: 'Verified'
-    };
-    mockPatientCoverage.push(newCov);
-    return newCov;
-  }
-
-  // Billing Module
-  async getInvoices(): Promise<Invoice[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockInvoices];
-  }
-
-  async createInvoice(data: Partial<Invoice>): Promise<Invoice> {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const amount = data.amount || 0;
-    const tax = amount * 0.1; // Standard 10% tax
-    const discount = data.discount || 0;
-    const newInv: Invoice = {
-      id: `INV-${Math.floor(Math.random() * 9000) + 1000}`,
-      patientId: data.patientId || '1',
-      patientName: data.patientName || 'Walk-in',
-      date: new Date().toISOString().split('T')[0],
-      category: data.category || BillingCategory.OPD,
-      amount,
-      tax,
-      discount,
-      total: amount + tax - discount,
-      status: data.status || 'Unpaid',
-      paymentMethod: data.paymentMethod || 'Cash',
-      insuranceProvider: data.insuranceProvider,
-      insuranceStatus: data.paymentMethod === 'Insurance' ? 'Pending' : undefined
-    };
-    mockInvoices.push(newInv);
-    return newInv;
-  }
-
-  async updateInvoice(id: string, updates: Partial<Invoice>): Promise<boolean> {
-    const idx = mockInvoices.findIndex(inv => inv.id === id);
-    if (idx !== -1) {
-      mockInvoices[idx] = { ...mockInvoices[idx], ...updates };
-      return true;
-    }
-    return false;
-  }
-
-  // Pharmacy Module
-  async getPharmacyInventory(): Promise<PharmacyItem[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockPharmacyInventory];
-  }
-
-  async updatePharmacyItem(id: string, updates: Partial<PharmacyItem>): Promise<boolean> {
-    const idx = mockPharmacyInventory.findIndex(i => i.id === id);
-    if (idx !== -1) {
-      mockPharmacyInventory[idx] = { ...mockPharmacyInventory[idx], ...updates };
-      return true;
-    }
-    return false;
-  }
-
-  async createPharmacyItem(item: Partial<PharmacyItem>): Promise<PharmacyItem> {
-    const newItem: PharmacyItem = {
-      id: `MED-${Math.random().toString(36).substr(2, 3).toUpperCase()}`,
-      name: item.name || 'New Medicine',
-      category: item.category || 'Tablet',
-      stock: item.stock || 0,
-      minStockLevel: item.minStockLevel || 10,
-      price: item.price || 0,
-      expiryDate: item.expiryDate || new Date().toISOString().split('T')[0],
-      supplierId: item.supplierId || 'SUP1'
-    };
-    mockPharmacyInventory.push(newItem);
-    return newItem;
-  }
-
-  async getPharmacySales(): Promise<PharmacySale[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockPharmacySales];
-  }
-
-  async createPharmacySale(sale: Partial<PharmacySale>): Promise<PharmacySale> {
-    const newSale: PharmacySale = {
-      id: `SALE-${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
-      patientName: sale.patientName || 'Walk-in',
-      items: sale.items || [],
-      totalAmount: sale.totalAmount || 0,
-      date: new Date().toISOString().split('T')[0],
-      paymentStatus: 'Paid'
-    };
-    mockPharmacySales.push(newSale);
-    return newSale;
-  }
-
-  async getPharmacySuppliers(): Promise<PharmacySupplier[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockPharmacySuppliers];
-  }
-
-  async createPharmacySupplier(supplier: Partial<PharmacySupplier>): Promise<PharmacySupplier> {
-    const newSupplier: PharmacySupplier = {
-      id: `SUP-${Math.random().toString(36).substr(2, 3).toUpperCase()}`,
-      name: supplier.name || 'New Supplier',
-      contactPerson: supplier.contactPerson || '',
-      phone: supplier.phone || '',
-      email: supplier.email || '',
-      address: supplier.address || ''
-    };
-    mockPharmacySuppliers.push(newSupplier);
-    return newSupplier;
-  }
-
-  // Radiology Module
-  async getRadiologyOrders(): Promise<RadiologyOrder[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockRadiologyOrders];
-  }
-
-  async createRadiologyOrder(order: Partial<RadiologyOrder>): Promise<RadiologyOrder> {
-    const newOrder: RadiologyOrder = {
-      id: `RAD-${Math.random().toString(36).substr(2, 3).toUpperCase()}`,
-      patientId: order.patientId || '1',
-      patientName: order.patientName || 'Unknown',
-      type: order.type || 'X-Ray',
-      bodyPart: order.bodyPart || 'Chest',
-      priority: order.priority || 'Routine',
-      status: 'Requested',
-      requestDate: new Date().toISOString().split('T')[0]
-    };
-    mockRadiologyOrders.push(newOrder);
-    return newOrder;
-  }
-
-  async updateRadiologyStatus(id: string, status: RadiologyOrder['status'], notes?: string): Promise<boolean> {
-    const order = mockRadiologyOrders.find(o => o.id === id);
-    if (order) {
-      order.status = status;
-      if (notes) order.radiologistNotes = notes;
-      if (status === 'Completed') order.reportUrl = `report_${id}.pdf`;
-      return true;
-    }
-    return false;
-  }
-
-  // Lab Module
-  async getLabTests(): Promise<LabTest[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockLabTests];
-  }
-
-  async createLabTest(test: Partial<LabTest>): Promise<LabTest> {
-    const newTest: LabTest = {
-      id: `LT-${Math.random().toString(36).substr(2, 3).toUpperCase()}`,
-      name: test.name || 'New Test',
-      category: test.category || 'General',
-      price: test.price || 0,
-      description: test.description || ''
-    };
-    mockLabTests.push(newTest);
-    return newTest;
-  }
-
-  async getLabSamples(): Promise<LabSample[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockLabSamples];
-  }
-
-  async updateSampleStatus(id: string, status: LabSample['status'], result?: string): Promise<boolean> {
-    const sample = mockLabSamples.find(s => s.id === id);
-    if (sample) {
-      sample.status = status;
-      if (result) sample.result = result;
-      return true;
-    }
-    return false;
-  }
-
-  async getAccessHistory(): Promise<AccessHistory[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockAccessHistory];
-  }
-
-  async getPatients(type?: PatientStatus): Promise<Patient[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    if (type) return mockPatients.filter(p => p.status === type);
-    return [...mockPatients];
-  }
-
-  async registerPatient(patientData: Partial<Patient>): Promise<Patient> {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const newPatient: Patient = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: patientData.name || 'Unknown',
-      age: patientData.age || 0,
-      gender: patientData.gender || 'Other',
-      status: patientData.status || PatientStatus.OPD,
-      admissionDate: new Date().toISOString().split('T')[0],
-      diagnosis: patientData.diagnosis || 'General Checkup',
-      medicalHistory: [],
-      prescriptions: [],
-      ...patientData
-    };
-    mockPatients.push(newPatient);
-    return newPatient;
-  }
-
-  async updatePatient(patientId: string, updates: Partial<Patient>): Promise<Patient | null> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const index = mockPatients.findIndex(p => p.id === patientId);
-    if (index !== -1) {
-      mockPatients[index] = { ...mockPatients[index], ...updates };
-      return mockPatients[index];
-    }
-    return null;
-  }
-
-  // Appointment Management
-  async getAppointments(): Promise<Appointment[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockAppointments];
-  }
-
-  async createAppointment(data: Partial<Appointment>): Promise<Appointment> {
-    await new Promise(resolve => setTimeout(resolve, 400));
-    const newApt: Appointment = {
-      id: `APT-${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
-      patientName: data.patientName || 'Walk-in Patient',
-      doctorId: data.doctorId || 'D1',
-      doctorName: data.doctorName || 'Dr. Wilson',
-      time: data.time || '10:00 AM',
-      date: data.date || new Date().toISOString().split('T')[0],
-      type: data.type || 'General',
-      source: data.source!,
-      status: 'Scheduled'
-    };
-    mockAppointments.push(newApt);
-    return newApt;
-  }
-
-  async updateAppointmentStatus(id: string, status: Appointment['status']): Promise<boolean> {
-    const apt = mockAppointments.find(a => a.id === id);
-    if (apt) { apt.status = status; return true; }
-    return false;
-  }
-
-  // Slot Management
-  async getSlots(): Promise<TimeSlot[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockSlots];
-  }
-
-  // Department Management
-  async getDepartments(): Promise<HospitalDepartment[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockDepartments];
-  }
-
-  async updateDepartment(id: string, updates: Partial<HospitalDepartment>): Promise<boolean> {
-    const idx = mockDepartments.findIndex(d => d.id === id);
-    if (idx !== -1) {
-      mockDepartments[idx] = { ...mockDepartments[idx], ...updates };
-      return true;
-    }
-    return false;
-  }
-
-  async createDepartment(data: Partial<HospitalDepartment>): Promise<HospitalDepartment> {
-    const newDept: HospitalDepartment = {
-      id: `DEPT-${Math.random().toString(36).substr(2, 3).toUpperCase()}`,
-      name: data.name || 'New Dept',
-      description: data.description || '',
-      staffCount: 0,
-      status: 'Active',
-      ...data
-    };
-    mockDepartments.push(newDept);
-    return newDept;
-  }
-
-  // Service Management
-  async getServices(): Promise<HospitalService[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [...mockServices];
-  }
-
-  async updateService(id: string, updates: Partial<HospitalService>): Promise<boolean> {
-    const idx = mockServices.findIndex(s => s.id === id);
-    if (idx !== -1) {
-      mockServices[idx] = { ...mockServices[idx], ...updates };
-      return true;
-    }
-    return false;
-  }
-
-  async getDoctors() {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return mockDoctors;
-  }
-
-  async getEmergencyCases() {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return mockEmergency;
-  }
-
-  async getRevenueSummary() {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return mockRevenue;
-  }
-
-  async getUsers(): Promise<User[]> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return [...mockUsers];
-  }
-
-  async updateUserRole(userId: string, newRole: UserRole): Promise<boolean> {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const user = mockUsers.find(u => u.id === userId);
-    if (user) {
-      user.role = newRole;
-      return true;
-    }
-    return false;
-  }
-
-  async getLeaveRequests(): Promise<LeaveRequest[]> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return [...mockLeaves];
-  }
-
-  async updateLeaveStatus(leaveId: string, status: 'Approved' | 'Rejected'): Promise<boolean> {
-    await new Promise(resolve => setTimeout(resolve, 400));
-    const leave = mockLeaves.find(l => l.id === leaveId);
-    if (leave) {
-      leave.status = status;
-      return true;
-    }
-    return false;
+    return fetch(`${API_BASE}/analytics/patient-growth`, { headers: getHeaders() }).then(handleResponse);
   }
 
   async getDoctorPerformance(): Promise<DoctorPerformance[]> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return [...mockPerformances];
+    return fetch(`${API_BASE}/analytics/doctor-performance`, { headers: getHeaders() }).then(handleResponse);
   }
 
+  // Custom Reports CRUD
+  async getCustomReports(): Promise<CustomReport[]> {
+    return fetch(`${API_BASE}/reports`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  async createCustomReport(report: Partial<CustomReport>): Promise<CustomReport> {
+    return fetch(`${API_BASE}/reports`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(report),
+    }).then(handleResponse);
+  }
+
+  async deleteCustomReport(id: string): Promise<boolean> {
+    return fetch(`${API_BASE}/reports/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    }).then(res => res.ok);
+  }
+
+  // Settings & Security CRUD
+  async getHospitalSettings(): Promise<HospitalSettings> {
+    return fetch(`${API_BASE}/settings/hospital`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  async updateHospitalSettings(updates: Partial<HospitalSettings>): Promise<boolean> {
+    return fetch(`${API_BASE}/settings/hospital`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(updates),
+    }).then(res => res.ok);
+  }
+
+  async getEmergencyNumbers(): Promise<EmergencyNumber[]> {
+    return fetch(`${API_BASE}/settings/emergency`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  async updateEmergencyNumber(id: string, updates: Partial<EmergencyNumber>): Promise<boolean> {
+    return fetch(`${API_BASE}/settings/emergency/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(updates),
+    }).then(res => res.ok);
+  }
+
+  async getPaymentGateways(): Promise<PaymentGateway[]> {
+    return fetch(`${API_BASE}/settings/payments`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  async updatePaymentGateway(id: string, updates: Partial<PaymentGateway>): Promise<boolean> {
+    return fetch(`${API_BASE}/settings/payments/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(updates),
+    }).then(res => res.ok);
+  }
+
+  async getBackupLogs(): Promise<BackupLog[]> {
+    return fetch(`${API_BASE}/security/backups`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  async runManualBackup(): Promise<BackupLog> {
+    return fetch(`${API_BASE}/security/backups/run`, {
+      method: 'POST',
+      headers: getHeaders(),
+    }).then(handleResponse);
+  }
+
+  async getSecuritySettings(): Promise<SecuritySetting[]> {
+    return fetch(`${API_BASE}/security/settings`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  async toggleSecuritySetting(id: string): Promise<boolean> {
+    return fetch(`${API_BASE}/security/settings/${id}/toggle`, {
+      method: 'POST',
+      headers: getHeaders(),
+    }).then(res => res.ok);
+  }
+
+  // Communication CRUD
+  async getInternalAnnouncements(): Promise<InternalAnnouncement[]> {
+    return fetch(`${API_BASE}/communication/announcements`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  async createAnnouncement(data: Partial<InternalAnnouncement>): Promise<InternalAnnouncement> {
+    return fetch(`${API_BASE}/communication/announcements`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    }).then(handleResponse);
+  }
+
+  async deleteAnnouncement(id: string): Promise<boolean> {
+    return fetch(`${API_BASE}/communication/announcements/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    }).then(res => res.ok);
+  }
+
+  async getSMSLogs(): Promise<SMSLog[]> {
+    return fetch(`${API_BASE}/communication/sms-logs`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  async sendSMS(data: Partial<SMSLog>): Promise<SMSLog> {
+    return fetch(`${API_BASE}/communication/send-sms`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    }).then(handleResponse);
+  }
+
+  async getEmailLogs(): Promise<EmailLog[]> {
+    return fetch(`${API_BASE}/communication/email-logs`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  // Patient Management CRUD
+  async getPatients(): Promise<Patient[]> {
+    return fetch(`${API_BASE}/patients`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  async registerPatient(data: Partial<Patient>): Promise<Patient> {
+    return fetch(`${API_BASE}/patients`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    }).then(handleResponse);
+  }
+
+  async updatePatient(id: string, updates: Partial<Patient>): Promise<Patient> {
+    return fetch(`${API_BASE}/patients/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(updates),
+    }).then(handleResponse);
+  }
+
+  // Clinical Records
   async addEHRRecord(patientId: string, record: Partial<EHRRecord>): Promise<boolean> {
-    const patient = mockPatients.find(p => p.id === patientId);
-    if (patient) {
-      patient.medicalHistory.push({ id: Math.random().toString(), date: new Date().toISOString(), condition: '', treatment: '', notes: '', ...record });
-      return true;
-    }
-    return false;
+    return fetch(`${API_BASE}/patients/${patientId}/ehr`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(record),
+    }).then(res => res.ok);
   }
 
   async addPrescription(patientId: string, prescription: Partial<Prescription>): Promise<boolean> {
-    const patient = mockPatients.find(p => p.id === patientId);
-    if (patient) {
-      patient.prescriptions.push({ id: Math.random().toString(), date: new Date().toISOString(), doctorName: '', medications: [], ...prescription });
-      return true;
-    }
-    return false;
+    return fetch(`${API_BASE}/patients/${patientId}/prescriptions`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(prescription),
+    }).then(res => res.ok);
+  }
+
+  // Doctor & Staff CRUD
+  async getDoctors(): Promise<Doctor[]> {
+    return fetch(`${API_BASE}/doctors`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  async getDepartments(): Promise<HospitalDepartment[]> {
+    return fetch(`${API_BASE}/departments`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  // Fix: Add missing createDepartment method
+  async createDepartment(data: Partial<HospitalDepartment>): Promise<HospitalDepartment> {
+    return fetch(`${API_BASE}/departments`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    }).then(handleResponse);
+  }
+
+  async updateDepartment(id: string, updates: Partial<HospitalDepartment>): Promise<boolean> {
+    return fetch(`${API_BASE}/departments/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(updates),
+    }).then(res => res.ok);
+  }
+
+  // LIS & RIS
+  async getLabTests(): Promise<LabTest[]> {
+    return fetch(`${API_BASE}/laboratory/tests`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  async getLabSamples(): Promise<LabSample[]> {
+    return fetch(`${API_BASE}/laboratory/samples`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  // Fix: Add missing updateSampleStatus method
+  async updateSampleStatus(id: string, status: LabSample['status'], result?: string): Promise<boolean> {
+    return fetch(`${API_BASE}/laboratory/samples/${id}/status`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ status, result }),
+    }).then(res => res.ok);
+  }
+
+  async getRadiologyOrders(): Promise<RadiologyOrder[]> {
+    return fetch(`${API_BASE}/radiology/orders`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  // Fix: Add missing createRadiologyOrder method
+  async createRadiologyOrder(data: Partial<RadiologyOrder>): Promise<RadiologyOrder> {
+    return fetch(`${API_BASE}/radiology/orders`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    }).then(handleResponse);
+  }
+
+  // Fix: Add missing updateRadiologyStatus method
+  async updateRadiologyStatus(id: string, status: RadiologyOrder['status'], notes?: string): Promise<boolean> {
+    return fetch(`${API_BASE}/radiology/orders/${id}/status`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ status, notes }),
+    }).then(res => res.ok);
+  }
+
+  // Pharmacy CRUD
+  async getPharmacyInventory(): Promise<PharmacyItem[]> {
+    return fetch(`${API_BASE}/pharmacy/inventory`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  async createPharmacyItem(item: Partial<PharmacyItem>): Promise<PharmacyItem> {
+    return fetch(`${API_BASE}/pharmacy/inventory`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(item),
+    }).then(handleResponse);
+  }
+
+  // Fix: Add missing getPharmacySales method
+  async getPharmacySales(): Promise<PharmacySale[]> {
+    return fetch(`${API_BASE}/pharmacy/sales`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  // Fix: Add missing getPharmacySuppliers method
+  async getPharmacySuppliers(): Promise<PharmacySupplier[]> {
+    return fetch(`${API_BASE}/pharmacy/suppliers`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  // Billing & Insurance
+  async getInvoices(): Promise<Invoice[]> {
+    return fetch(`${API_BASE}/billing/invoices`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  async updateInvoice(id: string, updates: Partial<Invoice>): Promise<boolean> {
+    return fetch(`${API_BASE}/billing/invoices/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(updates),
+    }).then(res => res.ok);
+  }
+
+  async getInsurancePanels(): Promise<InsurancePanel[]> {
+    return fetch(`${API_BASE}/insurance/panels`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  async getInsuranceClaims(): Promise<InsuranceClaim[]> {
+    return fetch(`${API_BASE}/insurance/claims`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  // Fix: Add missing updateClaimStatus method
+  async updateClaimStatus(id: string, updates: Partial<InsuranceClaim>): Promise<boolean> {
+    return fetch(`${API_BASE}/insurance/claims/${id}/status`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(updates),
+    }).then(res => res.ok);
+  }
+
+  // Fix: Add missing getPatientCoverage method
+  async getPatientCoverage(patientId: string): Promise<PatientCoverage[]> {
+    return fetch(`${API_BASE}/insurance/coverage/${patientId}`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  // CMS CRUD
+  async getCMSPages(): Promise<CMSPage[]> {
+    return fetch(`${API_BASE}/cms/pages`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  async updateCMSPage(id: string, updates: Partial<CMSPage>): Promise<boolean> {
+    return fetch(`${API_BASE}/cms/pages/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(updates),
+    }).then(res => res.ok);
+  }
+
+  async getCMSBlogs(): Promise<CMSBlog[]> {
+    return fetch(`${API_BASE}/cms/blogs`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  // Fix: Add missing updateCMSBlog method
+  async updateCMSBlog(id: string, updates: Partial<CMSBlog>): Promise<boolean> {
+    return fetch(`${API_BASE}/cms/blogs/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(updates),
+    }).then(res => res.ok);
+  }
+
+  async getCMSSliders(): Promise<CMSSlider[]> {
+    return fetch(`${API_BASE}/cms/sliders`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  // Fix: Add missing updateCMSSlider method
+  async updateCMSSlider(id: string, updates: Partial<CMSSlider>): Promise<boolean> {
+    return fetch(`${API_BASE}/cms/sliders/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(updates),
+    }).then(res => res.ok);
+  }
+
+  async getCMSSEO(): Promise<CMSSEOSetting[]> {
+    return fetch(`${API_BASE}/cms/seo`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  // Fix: Add missing updateDoctorCMS method
+  async updateDoctorCMS(id: string, updates: Partial<Doctor>): Promise<boolean> {
+    return fetch(`${API_BASE}/cms/doctors/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(updates),
+    }).then(res => res.ok);
+  }
+
+  async getUsers(): Promise<User[]> {
+    return fetch(`${API_BASE}/users`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  async updateUserRole(userId: string, newRole: UserRole): Promise<boolean> {
+    return fetch(`${API_BASE}/users/${userId}/role`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ role: newRole }),
+    }).then(res => res.ok);
+  }
+
+  async getLeaveRequests(): Promise<LeaveRequest[]> {
+    return fetch(`${API_BASE}/staff/leaves`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  // Fix: Add missing updateLeaveStatus method
+  async updateLeaveStatus(id: string, status: 'Approved' | 'Rejected'): Promise<boolean> {
+    return fetch(`${API_BASE}/staff/leaves/${id}/status`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ status }),
+    }).then(res => res.ok);
+  }
+
+  async getAppointments(): Promise<Appointment[]> {
+    return fetch(`${API_BASE}/appointments`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  // Fix: Add missing createAppointment method
+  async createAppointment(data: Partial<Appointment>): Promise<Appointment> {
+    return fetch(`${API_BASE}/appointments`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    }).then(handleResponse);
+  }
+
+  async updateAppointmentStatus(id: string, status: Appointment['status']): Promise<boolean> {
+    return fetch(`${API_BASE}/appointments/${id}/status`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ status }),
+    }).then(res => res.ok);
+  }
+
+  // Fix: Add missing getEmergencyCases method
+  async getEmergencyCases(): Promise<EmergencyCase[]> {
+    return fetch(`${API_BASE}/emergency/cases`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  // Fix: Add missing getSlots method
+  async getSlots(): Promise<TimeSlot[]> {
+    return fetch(`${API_BASE}/appointments/slots`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  // Fix: Add missing getServices method
+  async getServices(): Promise<HospitalService[]> {
+    return fetch(`${API_BASE}/services`, { headers: getHeaders() }).then(handleResponse);
+  }
+
+  // Fix: Add missing updateService method
+  async updateService(id: string, updates: Partial<HospitalService>): Promise<boolean> {
+    return fetch(`${API_BASE}/services/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(updates),
+    }).then(res => res.ok);
+  }
+
+  // Fix: Add missing getAccessHistory method
+  async getAccessHistory(): Promise<AccessHistory[]> {
+    return fetch(`${API_BASE}/laboratory/access-history`, { headers: getHeaders() }).then(handleResponse);
   }
 }
 

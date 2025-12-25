@@ -20,19 +20,24 @@ const SettingsSecurity: React.FC = () => {
 
   const loadData = async () => {
     setLoading(true);
-    const [h, e, g, b, s] = await Promise.all([
-      apiService.getHospitalSettings(),
-      apiService.getEmergencyNumbers(),
-      apiService.getPaymentGateways(),
-      apiService.getBackupLogs(),
-      apiService.getSecuritySettings()
-    ]);
-    setHospital(h);
-    setEmergencies(e);
-    setGateways(g);
-    setBackups(b);
-    setSecurity(s);
-    setLoading(false);
+    try {
+      const [h, e, g, b, s] = await Promise.all([
+        apiService.getHospitalSettings(),
+        apiService.getEmergencyNumbers(),
+        apiService.getPaymentGateways(),
+        apiService.getBackupLogs(),
+        apiService.getSecuritySettings()
+      ]);
+      setHospital(h);
+      setEmergencies(e);
+      setGateways(g);
+      setBackups(b);
+      setSecurity(s);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleUpdateHospital = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -71,7 +76,7 @@ const SettingsSecurity: React.FC = () => {
           <p className="text-sm text-slate-500">Configure core system parameters, payment infrastructure, and data safety protocols.</p>
         </div>
         <div className="flex p-1 bg-slate-100 rounded-2xl overflow-x-auto whitespace-nowrap">
-          <button onClick={() => setActiveTab('general')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'general' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-50' && 'text-slate-500'}`}>General</button>
+          <button onClick={() => setActiveTab('general')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'general' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500'}`}>General</button>
           <button onClick={() => setActiveTab('emergency')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'emergency' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500'}`}>Emergency</button>
           <button onClick={() => setActiveTab('payments')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'payments' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500'}`}>Payments</button>
           <button onClick={() => setActiveTab('backups')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'backups' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500'}`}>Backups</button>
@@ -128,10 +133,6 @@ const SettingsSecurity: React.FC = () => {
                  </div>
               </div>
            ))}
-           <div className="border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center p-8 text-slate-400 hover:border-red-300 hover:text-red-400 transition-all cursor-pointer">
-              <Icons.Emergency className="w-10 h-10 mb-2 opacity-30" />
-              <span className="font-black uppercase text-xs tracking-widest">Add Contact</span>
-           </div>
         </div>
       )}
 
@@ -238,15 +239,6 @@ const SettingsSecurity: React.FC = () => {
                  </div>
               </div>
            ))}
-           <div className="bg-slate-900 p-8 rounded-3xl text-white shadow-xl flex flex-col justify-center items-center text-center relative overflow-hidden">
-              <Icons.ShieldCheck className="w-16 h-16 text-sky-400 mb-4 animate-pulse" />
-              <h3 className="text-xl font-black uppercase tracking-tighter">System Integrity Scan</h3>
-              <p className="text-xs text-slate-400 mt-2">The system is currently monitored for suspicious SQL injection and XSS attempts.</p>
-              <div className="mt-8 flex gap-2">
-                 <span className="text-[10px] font-bold text-green-400">● GATEWAY SECURE</span>
-                 <span className="text-[10px] font-bold text-green-400">● DB ENCRYPTED</span>
-              </div>
-           </div>
         </div>
       )}
     </div>

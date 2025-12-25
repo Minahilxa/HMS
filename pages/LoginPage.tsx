@@ -1,22 +1,31 @@
 
 import React, { useState } from 'react';
 import { Icons } from '../constants';
+import { apiService } from '../services/apiService';
 
 interface LoginPageProps {
-  onLogin: (user: string, pass: string) => void;
+  onLogin: (user: any) => void;
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (username === 'admin' && password === 'password') {
-      onLogin(username, password);
-    } else {
-      setError('Invalid credentials. Use admin / password');
+    setLoading(true);
+    setError('');
+    
+    try {
+      const response = await apiService.login({ username, password });
+      localStorage.setItem('his_token', response.token);
+      onLogin(response.user);
+    } catch (err: any) {
+      setError(err.message || 'Login failed. Please check credentials.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -65,9 +74,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             </div>
             <button
               type="submit"
-              className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-md hover:shadow-lg transform active:scale-[0.98]"
+              disabled={loading}
+              className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-md hover:shadow-lg transform active:scale-[0.98] disabled:opacity-50"
             >
-              Log In
+              {loading ? 'Authenticating...' : 'Log In'}
             </button>
           </form>
 
