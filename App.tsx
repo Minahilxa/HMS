@@ -52,8 +52,9 @@ const App: React.FC = () => {
         } catch (e) {
           handleLogout();
         }
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     };
     checkSession();
   }, []);
@@ -65,18 +66,17 @@ const App: React.FC = () => {
   }, [isLoggedIn]);
 
   const loadData = async () => {
-    setLoading(true);
+    // Only set loading if we don't have stats yet
+    if (!stats) setLoading(true);
+    
     try {
-      const [s, r, d, e] = await Promise.all([
-        apiService.getDashboardStats(),
-        apiService.getRevenueSummary(),
-        apiService.getDoctors(),
-        apiService.getEmergencyCases()
-      ]);
-      setStats(s);
-      setRevenue(r);
-      setDoctors(d);
-      setEmergencyCases(e);
+      // PERFORMANCE FIX: One single optimized call instead of 4 separate parallel ones
+      const data = await apiService.getInitDashboard();
+      
+      setStats(data.stats);
+      setRevenue(data.revenue);
+      setDoctors(data.doctors);
+      setEmergencyCases(data.emergencyCases);
     } catch (error) {
       console.error('Data Load Failed:', error);
     } finally {
@@ -88,6 +88,7 @@ const App: React.FC = () => {
     localStorage.setItem('his_user', JSON.stringify(user));
     setCurrentUser(user);
     setIsLoggedIn(true);
+    // Data loading will be triggered by the useEffect observing isLoggedIn
   };
 
   const handleLogout = () => {
@@ -95,6 +96,7 @@ const App: React.FC = () => {
     localStorage.removeItem('his_user');
     setIsLoggedIn(false);
     setCurrentUser(null);
+    setStats(null);
   };
 
   if (!isLoggedIn) return <LoginPage onLogin={handleLogin} />;
@@ -103,7 +105,7 @@ const App: React.FC = () => {
     if (loading) return (
       <div className="flex flex-col items-center justify-center h-full space-y-4">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600"></div>
-        <p className="text-slate-500 font-medium tracking-wide uppercase text-[10px]">Accessing MongoDB...</p>
+        <p className="text-slate-500 font-medium tracking-wide uppercase text-[10px]">Initializing Session...</p>
       </div>
     );
 

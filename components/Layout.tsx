@@ -35,12 +35,16 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, activeTab, setActiv
     { id: 'users', label: 'User & Roles', icon: Icons.UserShield },
   ];
 
-  // Filter navigation items based on current user role
+  // Filter navigation items based on current user role with safety check
   const allowedNavItems = navItems.filter(item => {
-    if (!currentUser) return false;
+    if (!currentUser || !currentUser.role) return false;
     const permissions = ROLE_PERMISSIONS[currentUser.role] || [];
     return permissions.includes(item.id);
   });
+
+  const userInitial = currentUser?.name 
+    ? currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase() 
+    : 'AD';
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -67,7 +71,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, activeTab, setActiv
               }`}
             >
               <item.icon className={`w-6 h-6 flex-shrink-0 ${activeTab === item.id ? 'text-sky-600' : 'text-slate-400 group-hover:text-slate-500'}`} />
-              {isSidebarOpen && <span className="ml-3 text-xs uppercase tracking-wider truncate">{item.label}</span>}
+              {isSidebarOpen && <span className="ml-3 text-[11px] uppercase tracking-wider truncate font-semibold">{item.label}</span>}
             </button>
           ))}
         </nav>
@@ -78,7 +82,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, activeTab, setActiv
             className="w-full flex items-center px-3 py-3 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
           >
             <Icons.Logout className="w-6 h-6" />
-            {isSidebarOpen && <span className="ml-3 font-medium">Sign Out</span>}
+            {isSidebarOpen && <span className="ml-3 font-semibold text-sm">Sign Out</span>}
           </button>
         </div>
       </aside>
@@ -86,7 +90,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, activeTab, setActiv
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Navbar */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-10">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-10 shrink-0">
           <button 
             onClick={() => setSidebarOpen(!isSidebarOpen)}
             className="p-2 rounded-md text-slate-500 hover:bg-slate-100"
@@ -99,13 +103,13 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, activeTab, setActiv
           <div className="flex items-center space-y-0 space-x-4">
             <div className="hidden md:flex flex-col text-right">
               <span className="text-sm font-semibold text-slate-700">{currentUser?.name || 'Administrator'}</span>
-              <span className="text-[10px] text-sky-600 font-bold uppercase tracking-widest bg-sky-50 px-2 py-0.5 rounded-full border border-sky-100 self-end">
-                {currentUser?.role || 'User'}
+              <span className="text-[9px] text-sky-600 font-bold uppercase tracking-widest bg-sky-50 px-2 py-0.5 rounded-full border border-sky-100 self-end">
+                {currentUser?.role || 'System Access'}
               </span>
             </div>
             <div className="w-10 h-10 rounded-full bg-sky-100 border border-sky-200 flex items-center justify-center shadow-inner">
-              <span className="text-sky-600 font-black">
-                {currentUser?.name.split(' ').map(n => n[0]).join('') || 'AD'}
+              <span className="text-sky-600 font-black text-sm">
+                {userInitial}
               </span>
             </div>
           </div>
