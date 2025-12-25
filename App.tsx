@@ -10,6 +10,13 @@ import AppointmentManagement from './pages/AppointmentManagement';
 import DepartmentManagement from './pages/DepartmentManagement';
 import LaboratoryManagement from './pages/LaboratoryManagement';
 import RadiologyManagement from './pages/RadiologyManagement';
+import PharmacyManagement from './pages/PharmacyManagement';
+import BillingManagement from './pages/BillingManagement';
+import InsuranceManagement from './pages/InsuranceManagement';
+import CMSManagement from './pages/CMSManagement';
+import ReportsManagement from './pages/ReportsManagement';
+import CommunicationManagement from './pages/CommunicationManagement';
+import SettingsSecurity from './pages/SettingsSecurity';
 import { apiService } from './services/apiService';
 import { 
   Patient, 
@@ -67,6 +74,7 @@ const App: React.FC = () => {
     if (user === 'receptionist') role = UserRole.RECEPTIONIST;
     if (user === 'lab' || user === 'mark') role = UserRole.LAB_TECH;
     if (user === 'radio') role = UserRole.RADIOLOGIST;
+    if (user === 'pharmacy') role = UserRole.PHARMACIST;
 
     setCurrentUser({
       id: 'U1',
@@ -114,6 +122,20 @@ const App: React.FC = () => {
         return <LaboratoryManagement />;
       case 'radio-mgmt':
         return <RadiologyManagement />;
+      case 'pharmacy-mgmt':
+        return <PharmacyManagement />;
+      case 'billing-mgmt':
+        return <BillingManagement />;
+      case 'insurance-mgmt':
+        return <InsuranceManagement />;
+      case 'cms-mgmt':
+        return <CMSManagement />;
+      case 'reports-mgmt':
+        return <ReportsManagement />;
+      case 'comm-mgmt':
+        return <CommunicationManagement />;
+      case 'settings-mgmt':
+        return <SettingsSecurity />;
       case 'emergency':
         return <ListSection title="Emergency Cases" data={emergencyCases} type="emergency" />;
       case 'revenue':
