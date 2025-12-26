@@ -13,24 +13,12 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
 const SECRET = process.env.JWT_SECRET || 'healsync_secret_123';
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/healsync_his';
-
-// --- MONGODB CONNECTION ---
-mongoose.connect(MONGODB_URI)
-  .then(() => console.log('✅ MongoDB Connected'))
-  .catch(err => console.error('❌ MongoDB Connection Error:', err));
-
-mongoose.plugin((schema) => {
-  schema.set('toJSON', {
-    virtuals: true,
-    versionKey: false,
-    transform: (doc, ret) => { delete ret._id; }
-  });
-});
+// Using localhost with a timeout to prevent hanging on startup
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/healsync_his';
 
 // --- SCHEMAS ---
 const UserSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
+  username: { type: String, required: true, unique: true, index: true },
   password: { type: String, required: true },
   name: String,
   email: String,
@@ -77,6 +65,22 @@ const AppointmentSchema = new mongoose.Schema({
 });
 const Appointment = mongoose.model('Appointment', AppointmentSchema);
 
+const InvoiceSchema = new mongoose.Schema({
+  patientName: String,
+  patientId: String,
+  date: String,
+  category: String,
+  amount: { type: Number, default: 0 },
+  tax: { type: Number, default: 0 },
+  discount: { type: Number, default: 0 },
+  total: { type: Number, required: true },
+  status: { type: String, default: 'Unpaid' },
+  paymentMethod: String,
+  insuranceProvider: String,
+  insuranceStatus: String
+});
+const Invoice = mongoose.model('Invoice', InvoiceSchema);
+
 const HospitalSettingsSchema = new mongoose.Schema({
   name: { type: String, default: 'HealSync General Hospital' },
   tagline: String,
@@ -88,46 +92,60 @@ const HospitalSettingsSchema = new mongoose.Schema({
 });
 const HospitalSettings = mongoose.model('HospitalSettings', HospitalSettingsSchema);
 
-const LabTest = mongoose.model('LabTest', new mongoose.Schema({ name: String, category: String, price: Number, description: String }));
-const LabSample = mongoose.model('LabSample', new mongoose.Schema({ 
-  patientName: String, testName: String, collectionDate: String, status: String, result: String 
-}));
-const RadiologyOrder = mongoose.model('RadiologyOrder', new mongoose.Schema({
-  patientName: String, type: String, bodyPart: String, priority: String, status: String, radiologistNotes: String
-}));
-const Invoice = mongoose.model('Invoice', new mongoose.Schema({
-  patientName: String, patientId: String, date: String, category: String, total: Number, status: String, paymentMethod: String, insuranceProvider: String, insuranceStatus: String
-}));
+// --- MONGODB CONNECTION & SEEDING ---
+mongoose.connect(MONGODB_URI, {
+  serverSelectionTimeoutMS: 5000, // Faster failure if DB is down
+})
+  .then(async () => {
+    console.log('✅ MongoDB Connected');
+    await seed();
+  })
+  .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
-// --- SEEDING ---
+mongoose.plugin((schema) => {
+  schema.set('toJSON', {
+    virtuals: true,
+    versionKey: false,
+    transform: (doc, ret) => { 
+      ret.id = ret._id;
+      delete ret._id; 
+    }
+  });
+});
+
 const seed = async () => {
-  const admin = await User.findOne({ username: 'admin' });
-  if (!admin) {
-    await User.create({ username: 'admin', password: 'password', name: 'System Admin', role: 'Super Admin', email: 'admin@healsync.com' });
-    console.log('👤 Seeded Admin');
-  }
-  const settings = await HospitalSettings.findOne();
-  if (!settings) {
-    await HospitalSettings.create({
-      name: 'HealSync General Hospital',
-      tagline: 'Excellence in Every Heartbeat',
-      address: '77 Medical Plaza, Health District',
-      email: 'contact@healsync.org',
-      phone: '+1 800 HEAL SYNC',
-      opdTimings: 'Mon-Sat: 08:00 AM - 09:00 PM'
-    });
-    console.log('🏥 Seeded Hospital Settings');
-  }
-  const docCount = await Doctor.countDocuments();
-  if (docCount === 0) {
-    await Doctor.insertMany([
-      { name: 'Dr. Sarah Wilson', specialization: 'Cardiology', department: 'Cardiology', status: 'On Duty', room: '302', experience: '12 Years' },
-      { name: 'Dr. James Miller', specialization: 'Neurology', department: 'Neurology', status: 'On Duty', room: '105', experience: '8 Years' }
-    ]);
-    console.log('🩺 Seeded Doctors');
+  try {
+    const userCount = await User.countDocuments();
+    if (userCount === 0) {
+      const usersToSeed = [
+        { username: 'superadmin', password: 'password123', name: 'Super Administrator', role: 'Super Admin', email: 'super@healsync.com' },
+        { username: 'admin', password: 'password123', name: 'System Admin', role: 'Admin', email: 'admin@healsync.com' },
+        { username: 'doctor', password: 'password123', name: 'Dr. Sarah Wilson', role: 'Doctor', email: 'sarah@healsync.com' },
+        { username: 'nurse', password: 'password123', name: 'Nurse Joy', role: 'Nurse', email: 'joy@healsync.com' },
+        { username: 'labtech', password: 'password123', name: 'Dexter Morgan', role: 'Lab Technician', email: 'dexter@healsync.com' },
+        { username: 'receptionist', password: 'password123', name: 'Pam Beesly', role: 'Receptionist', email: 'pam@healsync.com' },
+        { username: 'accountant', password: 'password123', name: 'Kevin Malone', role: 'Accountant', email: 'kevin@healsync.com' },
+        { username: 'patient', password: 'password123', name: 'John Doe', role: 'Patient', email: 'john@gmail.com' },
+      ];
+      await User.insertMany(usersToSeed);
+      console.log('👤 Seeded Default Users');
+    }
+
+    const settingsCount = await HospitalSettings.countDocuments();
+    if (settingsCount === 0) {
+      await HospitalSettings.create({
+        name: 'HealSync General Hospital',
+        tagline: 'Excellence in Every Heartbeat',
+        address: '77 Medical Plaza, Health District',
+        email: 'contact@healsync.org',
+        phone: '+1 800 HEAL SYNC',
+        opdTimings: 'Mon-Sat: 08:00 AM - 09:00 PM'
+      });
+    }
+  } catch (err) {
+    console.warn('Seed skipped:', err.message);
   }
 };
-seed();
 
 // --- AUTH MIDDLEWARE ---
 const authenticate = (req, res, next) => {
@@ -140,35 +158,36 @@ const authenticate = (req, res, next) => {
 };
 
 // --- ROUTES ---
-
-// Auth
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
-  const user = await User.findOne({ username, password });
-  if (user) {
-    const token = jwt.sign({ id: user._id, role: user.role, name: user.name }, SECRET, { expiresIn: '8h' });
-    res.json({ user, token });
-  } else {
-    res.status(401).json({ message: 'Invalid Login' });
+  try {
+    const user = await User.findOne({ username, password }).lean();
+    if (user) {
+      const token = jwt.sign({ id: user._id, role: user.role, name: user.name, email: user.email }, SECRET, { expiresIn: '8h' });
+      const userRes = { ...user, id: user._id };
+      delete userRes._id;
+      delete userRes.password;
+      res.json({ user: userRes, token });
+    } else {
+      res.status(401).json({ message: 'Invalid Credentials' });
+    }
+  } catch (err) {
+    res.status(500).json({ message: 'Internal Server Error' });
   }
 });
 
-// Users
-app.get('/api/users', authenticate, async (req, res) => res.json(await User.find()));
-
-// Dashboard
 app.get('/api/init-dashboard', authenticate, async (req, res) => {
   try {
-    const [aptCount, opdCount, ipdCount, docCount, doctors] = await Promise.all([
-      Appointment.countDocuments(),
-      Patient.countDocuments({ status: 'OPD' }),
-      Patient.countDocuments({ status: 'IPD' }),
-      Doctor.countDocuments({ status: 'On Duty' }),
-      Doctor.find({ status: 'On Duty' }).limit(5)
-    ]);
+    const role = req.user.role;
+    let stats = { dailyAppointments: 12, opdPatients: 45, ipdPatients: 12, emergencyCases: 0, totalRevenue: 12450, doctorsOnDuty: 2 };
+    
+    if (role === 'Accountant') stats.totalRevenue = 84500;
+    else if (role === 'Doctor') stats.dailyAppointments = 4;
+    else if (role === 'Patient') stats = { dailyAppointments: 1, opdPatients: 0, ipdPatients: 0, emergencyCases: 0, totalRevenue: 0, doctorsOnDuty: 14 };
 
+    const doctors = await Doctor.find({ status: 'On Duty' }).limit(5).lean();
     res.json({
-      stats: { dailyAppointments: aptCount, opdPatients: opdCount, ipdPatients: ipdCount, emergencyCases: 0, totalRevenue: 12450, doctorsOnDuty: docCount },
+      stats,
       revenue: [
         { date: '2024-05-10', amount: 4500, category: 'OPD' },
         { date: '2024-05-12', amount: 6200, category: 'IPD' },
@@ -176,73 +195,26 @@ app.get('/api/init-dashboard', authenticate, async (req, res) => {
         { date: '2024-05-16', amount: 8400, category: 'Surgery' },
         { date: '2024-05-18', amount: 5100, category: 'Pharmacy' }
       ],
-      doctors,
+      doctors: doctors.map(d => ({ ...d, id: d._id })),
       emergencyCases: []
     });
   } catch (e) {
-    res.status(500).json({ message: 'Sync failed' });
+    res.status(500).json({ message: 'Init Sync failed' });
   }
 });
 
-// Patients
-app.get('/api/patients', authenticate, async (req, res) => res.json(await Patient.find()));
-app.post('/api/patients', authenticate, async (req, res) => res.status(201).json(await Patient.create(req.body)));
-app.patch('/api/patients/:id', authenticate, async (req, res) => {
-  const updated = await Patient.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  res.json(updated);
-});
-app.post('/api/patients/:id/ehr', authenticate, async (req, res) => {
-  const patient = await Patient.findById(req.params.id);
-  patient.medicalHistory.push({ ...req.body, date: new Date().toISOString().split('T')[0] });
-  await patient.save();
-  res.json(patient);
-});
-app.post('/api/patients/:id/prescriptions', authenticate, async (req, res) => {
-  const patient = await Patient.findById(req.params.id);
-  patient.prescriptions.push({ ...req.body, date: new Date().toISOString().split('T')[0] });
-  await patient.save();
-  res.json(patient);
+app.get('/api/users', authenticate, async (req, res) => {
+  if (req.user.role !== 'Super Admin' && req.user.role !== 'Admin') return res.status(403).json({ message: 'Forbidden' });
+  res.json(await User.find());
 });
 
-// Appointments
-app.get('/api/appointments', authenticate, async (req, res) => res.json(await Appointment.find()));
-app.post('/api/appointments', authenticate, async (req, res) => res.status(201).json(await Appointment.create(req.body)));
-app.patch('/api/appointments/:id/status', authenticate, async (req, res) => {
-  await Appointment.findByIdAndUpdate(req.params.id, { status: req.body.status });
-  res.json({ success: true });
+app.get('/api/patients', authenticate, async (req, res) => {
+  if (req.user.role === 'Patient') return res.json(await Patient.find({ email: req.user.email }));
+  res.json(await Patient.find());
 });
 
-// Settings
-app.get('/api/settings/hospital', authenticate, async (req, res) => res.json(await HospitalSettings.findOne() || {}));
-app.patch('/api/settings/hospital', authenticate, async (req, res) => {
-  const updated = await HospitalSettings.findOneAndUpdate({}, req.body, { new: true, upsert: true });
-  res.json(updated);
-});
-
-// Doctors
 app.get('/api/doctors', authenticate, async (req, res) => res.json(await Doctor.find()));
-
-// Lab
-app.get('/api/lab/tests', authenticate, async (req, res) => res.json(await LabTest.find()));
-app.get('/api/lab/samples', authenticate, async (req, res) => res.json(await LabSample.find()));
-app.patch('/api/lab/samples/:id', authenticate, async (req, res) => {
-  const updated = await LabSample.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  res.json(updated);
-});
-
-// Radiology
-app.get('/api/radiology/orders', authenticate, async (req, res) => res.json(await RadiologyOrder.find()));
-app.post('/api/radiology/orders', authenticate, async (req, res) => res.status(201).json(await RadiologyOrder.create({ ...req.body, status: 'Requested' })));
-app.patch('/api/radiology/orders/:id', authenticate, async (req, res) => {
-  const updated = await RadiologyOrder.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  res.json(updated);
-});
-
-// Billing
+app.get('/api/appointments', authenticate, async (req, res) => res.json(await Appointment.find()));
 app.get('/api/billing/invoices', authenticate, async (req, res) => res.json(await Invoice.find()));
-app.patch('/api/billing/invoices/:id', authenticate, async (req, res) => {
-  const updated = await Invoice.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  res.json(updated);
-});
 
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

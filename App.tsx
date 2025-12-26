@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
@@ -38,8 +38,24 @@ const App: React.FC = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [emergencyCases, setEmergencyCases] = useState<EmergencyCase[]>([]);
 
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await apiService.getInitDashboard();
+      setStats(data.stats);
+      setRevenue(data.revenue);
+      setDoctors(data.doctors);
+      setEmergencyCases(data.emergencyCases);
+    } catch (err: any) {
+      console.error('❌ Data Sync Error:', err);
+      setError("Clinical Server Connection Failed. Please ensure the backend is running.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    console.info('🛠 App Component Mounted: Checking session...');
     const checkSession = () => {
       const token = localStorage.getItem('his_token');
       const savedUser = localStorage.getItem('his_user');
@@ -47,15 +63,12 @@ const App: React.FC = () => {
       if (token && savedUser) {
         try {
           const user = JSON.parse(savedUser);
-          console.log('👤 Found existing session for:', user.name);
           setCurrentUser(user);
           setIsLoggedIn(true);
         } catch (e) {
-          console.warn('⚠️ Session data corrupted, logging out.');
           handleLogout();
         }
       } else {
-        console.log('ℹ️ No active session found.');
         setLoading(false);
       }
     };
@@ -66,26 +79,7 @@ const App: React.FC = () => {
     if (isLoggedIn) {
       loadData();
     }
-  }, [isLoggedIn]);
-
-  const loadData = async () => {
-    console.log('📡 Fetching initial dashboard data...');
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await apiService.getInitDashboard();
-      setStats(data.stats);
-      setRevenue(data.revenue);
-      setDoctors(data.doctors);
-      setEmergencyCases(data.emergencyCases);
-      console.log('✅ Dashboard data synced.');
-    } catch (err: any) {
-      console.error('❌ Data Sync Error:', err);
-      setError("Clinical Server Connection Failed. Please ensure the backend is running at http://localhost:5000 and MongoDB is active.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [isLoggedIn, loadData]);
 
   const handleLogin = (user: User) => {
     localStorage.setItem('his_user', JSON.stringify(user));
@@ -107,7 +101,7 @@ const App: React.FC = () => {
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-screen bg-slate-50 space-y-4">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600"></div>
-      <p className="text-slate-500 font-medium tracking-wide uppercase text-[10px]">Synchronizing Clinical Data...</p>
+      <p className="text-slate-500 font-medium tracking-wide uppercase text-[10px]">Syncing Clinical Intelligence...</p>
     </div>
   );
 

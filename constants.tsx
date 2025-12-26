@@ -11,18 +11,47 @@ export const COLORS = {
   info: '#3b82f6',
 };
 
-// Permission mapping for Sidebar
+// Permission mapping for Sidebar based on user requirements
 export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
-  [UserRole.SUPER_ADMIN]: ['dashboard', 'appointments', 'patients', 'doctors', 'doctor-mgmt', 'emergency', 'revenue', 'users', 'dept-mgmt', 'lab-mgmt', 'radio-mgmt', 'pharmacy-mgmt', 'billing-mgmt', 'insurance-mgmt', 'cms-mgmt', 'reports-mgmt', 'comm-mgmt', 'settings-mgmt'],
-  [UserRole.ADMIN]: ['dashboard', 'appointments', 'patients', 'doctors', 'doctor-mgmt', 'emergency', 'revenue', 'users', 'dept-mgmt', 'lab-mgmt', 'radio-mgmt', 'pharmacy-mgmt', 'billing-mgmt', 'insurance-mgmt', 'cms-mgmt', 'reports-mgmt', 'comm-mgmt', 'settings-mgmt'],
-  [UserRole.DOCTOR]: ['dashboard', 'appointments', 'patients', 'emergency', 'lab-mgmt', 'radio-mgmt', 'comm-mgmt'],
-  [UserRole.NURSE]: ['dashboard', 'patients', 'emergency', 'comm-mgmt'],
-  [UserRole.LAB_TECH]: ['dashboard', 'patients', 'lab-mgmt'],
-  [UserRole.RADIOLOGIST]: ['dashboard', 'patients', 'radio-mgmt'],
-  [UserRole.PHARMACIST]: ['dashboard', 'pharmacy-mgmt'],
-  [UserRole.RECEPTIONIST]: ['dashboard', 'appointments', 'patients', 'billing-mgmt', 'insurance-mgmt', 'comm-mgmt'],
-  [UserRole.ACCOUNTANT]: ['dashboard', 'revenue', 'pharmacy-mgmt', 'billing-mgmt', 'insurance-mgmt', 'reports-mgmt'],
-  [UserRole.PATIENT]: ['dashboard'],
+  [UserRole.SUPER_ADMIN]: [
+    'dashboard', 'apt-mgmt', 'patients', 'doctors', 'doctor-mgmt', 
+    'dept-mgmt', 'lab-mgmt', 'radio-mgmt', 'pharmacy-mgmt', 
+    'billing-mgmt', 'insurance-mgmt', 'reports-mgmt', 'cms-mgmt', 
+    'comm-mgmt', 'settings-mgmt', 'emergency', 'revenue', 'users'
+  ],
+  [UserRole.ADMIN]: [
+    'dashboard', 'apt-mgmt', 'patients', 'doctors', 'doctor-mgmt', 
+    'dept-mgmt', 'lab-mgmt', 'radio-mgmt', 'pharmacy-mgmt', 
+    'billing-mgmt', 'insurance-mgmt', 'reports-mgmt', 'cms-mgmt', 
+    'comm-mgmt', 'emergency', 'revenue', 'users'
+    // Settings & Security removed for Admin as per requirements
+  ],
+  [UserRole.DOCTOR]: [
+    'dashboard', 'apt-mgmt', 'patients', 'doctors', 'comm-mgmt', 'emergency'
+  ],
+  [UserRole.NURSE]: [
+    'dashboard', 'patients', 'apt-mgmt', 'comm-mgmt', 'emergency'
+  ],
+  [UserRole.LAB_TECH]: [
+    'dashboard', 'lab-mgmt', 'patients', 'comm-mgmt'
+  ],
+  // Adding missing role Radiologist
+  [UserRole.RADIOLOGIST]: [
+    'dashboard', 'radio-mgmt', 'patients', 'comm-mgmt'
+  ],
+  // Adding missing role Pharmacist
+  [UserRole.PHARMACIST]: [
+    'dashboard', 'pharmacy-mgmt', 'patients', 'comm-mgmt'
+  ],
+  [UserRole.RECEPTIONIST]: [
+    'dashboard', 'apt-mgmt', 'patients', 'doctors', 'insurance-mgmt', 'billing-mgmt', 'comm-mgmt'
+  ],
+  [UserRole.ACCOUNTANT]: [
+    'dashboard', 'billing-mgmt', 'insurance-mgmt', 'reports-mgmt', 'revenue'
+  ],
+  [UserRole.PATIENT]: [
+    'dashboard', 'apt-mgmt', 'patients', 'comm-mgmt'
+  ],
 };
 
 export const Icons = {
