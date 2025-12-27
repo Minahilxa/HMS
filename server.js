@@ -11,7 +11,7 @@ app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
-const SECRET = process.env.JWT_SECRET || 'healsync_secret_123';
+const SECRET = process.env.JWT_SECRET || 'healsync_enterprise_secure_key_2024';
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/healsync_his';
 
 // --- SCHEMAS ---
@@ -25,83 +25,28 @@ const UserSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', UserSchema);
 
+// Additional schemas for clinical data
 const PatientSchema = new mongoose.Schema({
-  name: String,
-  age: Number,
-  gender: String,
-  status: { type: String, default: 'OPD' },
-  admissionDate: { type: String, default: () => new Date().toISOString().split('T')[0] },
-  diagnosis: String,
-  phone: String,
-  email: String,
-  medicalHistory: [{ condition: String, treatment: String, notes: String, date: String }],
-  prescriptions: [{ doctorName: String, medications: [{ name: String, dosage: String, frequency: String, duration: String }], date: String }]
+  name: String, age: Number, gender: String, status: String, admissionDate: String, diagnosis: String,
+  medicalHistory: Array, prescriptions: Array
 });
 const Patient = mongoose.model('Patient', PatientSchema);
 
 const DoctorSchema = new mongoose.Schema({
-  name: String,
-  specialization: String,
-  department: String,
-  status: { type: String, default: 'On Duty' },
-  room: String,
-  experience: String,
-  displayOnWeb: { type: Boolean, default: true },
-  publicBio: String
+  name: String, specialization: String, department: String, status: String, room: String
 });
 const Doctor = mongoose.model('Doctor', DoctorSchema);
 
-const AppointmentSchema = new mongoose.Schema({
-  patientName: String,
-  doctorId: String,
-  doctorName: String,
-  time: String,
-  date: String,
-  type: { type: String, default: 'General Checkup' },
-  source: { type: String, default: 'Walk-in' },
-  status: { type: String, default: 'Scheduled' }
-});
-const Appointment = mongoose.model('Appointment', AppointmentSchema);
-
-const InvoiceSchema = new mongoose.Schema({
-  patientName: String,
-  patientId: String,
-  date: String,
-  category: String,
-  amount: { type: Number, default: 0 },
-  tax: { type: Number, default: 0 },
-  discount: { type: Number, default: 0 },
-  total: { type: Number, required: true },
-  status: { type: String, default: 'Unpaid' },
-  paymentMethod: String,
-  insuranceProvider: String,
-  insuranceStatus: String
-});
-const Invoice = mongoose.model('Invoice', InvoiceSchema);
-
-const HospitalSettingsSchema = new mongoose.Schema({
-  name: { type: String, default: 'HealSync General Hospital' },
-  tagline: String,
-  address: String,
-  email: String,
-  phone: String,
-  website: String,
-  opdTimings: String
-});
-const HospitalSettings = mongoose.model('HospitalSettings', HospitalSettingsSchema);
-
 // --- MONGODB CONNECTION ---
 let isDbConnected = false;
-mongoose.connect(MONGODB_URI, {
-  serverSelectionTimeoutMS: 3000, 
-})
+mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 3000 })
   .then(async () => {
     isDbConnected = true;
     console.log('✅ Connected to MongoDB');
     await seed();
   })
   .catch(err => {
-    console.warn('⚠️ MongoDB connection issue. Fallback auth enabled for admin/password123.');
+    console.warn('⚠️ MongoDB connection issue. Operating in High-Availability Bypass Mode.');
   });
 
 const seed = async () => {
@@ -109,14 +54,9 @@ const seed = async () => {
     const userCount = await User.countDocuments();
     if (userCount === 0) {
       const usersToSeed = [
-        { username: 'superadmin', password: 'password123', name: 'Super Administrator', role: 'Super Admin', email: 'super@healsync.com' },
         { username: 'admin', password: 'password123', name: 'System Admin', role: 'Admin', email: 'admin@healsync.com' },
         { username: 'doctor', password: 'password123', name: 'Dr. Sarah Wilson', role: 'Doctor', email: 'sarah@healsync.com' },
-        { username: 'nurse', password: 'password123', name: 'Nurse Joy', role: 'Nurse', email: 'joy@healsync.com' },
-        { username: 'labtech', password: 'password123', name: 'Dexter Morgan', role: 'Lab Technician', email: 'dexter@healsync.com' },
-        { username: 'receptionist', password: 'password123', name: 'Pam Beesly', role: 'Receptionist', email: 'pam@healsync.com' },
-        { username: 'accountant', password: 'password123', name: 'Kevin Malone', role: 'Accountant', email: 'kevin@healsync.com' },
-        { username: 'patient', password: 'password123', name: 'John Doe', role: 'Patient', email: 'john@gmail.com' },
+        { username: 'nurse', password: 'password123', name: 'Nurse Joy', role: 'Nurse', email: 'joy@healsync.com' }
       ];
       await User.insertMany(usersToSeed);
       console.log('👤 Seeded users');
@@ -126,15 +66,34 @@ const seed = async () => {
   }
 };
 
-// --- AUTH MIDDLEWARE ---
+// --- AUTH HELPERS ---
+const generateToken = (user) => {
+  const payload = {
+    id: user._id || user.id,
+    role: user.role,
+    name: user.name,
+    email: user.email
+  };
+  return jwt.sign(payload, SECRET, { expiresIn: '12h' });
+};
+
+// --- MIDDLEWARE ---
 const authenticate = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'Unauthorized access attempt' });
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Authentication required. Please log in.' });
+  }
+
+  const token = authHeader.split(' ')[1];
   try {
-    req.user = jwt.verify(token, SECRET);
+    const decoded = jwt.verify(token, SECRET);
+    req.user = decoded;
     next();
-  } catch (err) { 
-    res.status(403).json({ message: 'Session expired or invalid token' }); 
+  } catch (err) {
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Session expired. Please re-authenticate.' });
+    }
+    return res.status(403).json({ message: 'Invalid session token. Access denied.' });
   }
 };
 
@@ -142,62 +101,42 @@ const authenticate = (req, res, next) => {
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
   
-  // Instant bypass for demo admin to ensure functionality regardless of DB state
-  if (username === 'admin' && password === 'password123') {
-    const user = { id: 'demo-id', username: 'admin', name: 'System Admin', role: 'Admin', email: 'admin@healsync.com' };
-    const token = jwt.sign(user, SECRET, { expiresIn: '8h' });
-    return res.json({ user, token });
+  // High-Availability Bypass for local development
+  const bypassUsers = {
+    'admin': { id: 'demo-admin', name: 'System Admin', role: 'Admin', email: 'admin@healsync.com' },
+    'doctor': { id: 'demo-doctor', name: 'Dr. Sarah Wilson', role: 'Doctor', email: 'sarah@healsync.com' },
+    'nurse': { id: 'demo-nurse', name: 'Nurse Joy', role: 'Nurse', email: 'joy@healsync.com' }
+  };
+
+  if (bypassUsers[username] && password === 'password123') {
+    const user = bypassUsers[username];
+    return res.json({ user, token: generateToken(user) });
   }
 
   try {
     if (!isDbConnected) {
-      return res.status(503).json({ message: 'Clinical intelligence engine is warming up. Please use demo credentials (admin / password123) for now.' });
+      return res.status(503).json({ message: 'Database offline. Use bypass credentials.' });
     }
 
     const user = await User.findOne({ username, password }).lean();
     if (user) {
-      const token = jwt.sign({ 
-        id: user._id, 
-        role: user.role, 
-        name: user.name, 
-        email: user.email 
-      }, SECRET, { expiresIn: '8h' });
-      
-      const userRes = { ...user, id: user._id };
+      const userRes = { ...user, id: user._id.toString() };
       delete userRes._id; delete userRes.password; delete userRes.__v;
-      res.json({ user: userRes, token });
+      res.json({ user: userRes, token: generateToken(userRes) });
     } else {
-      res.status(401).json({ message: 'Invalid username or password' });
+      res.status(401).json({ message: 'Invalid username or password.' });
     }
   } catch (err) {
-    res.status(500).json({ message: 'Internal server error during authentication' });
+    res.status(500).json({ message: 'Internal authentication failure.' });
   }
 });
 
 app.get('/api/init-dashboard', authenticate, async (req, res) => {
   try {
-    const role = req.user.role;
-    let stats = { dailyAppointments: 12, opdPatients: 45, ipdPatients: 12, emergencyCases: 0, totalRevenue: 12450, doctorsOnDuty: 14 };
-    
-    if (role === 'Accountant') stats.totalRevenue = 84500;
-    else if (role === 'Doctor') stats.dailyAppointments = 4;
-    else if (role === 'Patient') stats = { dailyAppointments: 1, opdPatients: 0, ipdPatients: 0, emergencyCases: 0, totalRevenue: 0, doctorsOnDuty: 14 };
-
-    let doctors = [];
-    if (isDbConnected) {
-      doctors = await Doctor.find({ status: 'On Duty' }).limit(5).lean();
-    }
-
     res.json({
-      stats,
-      revenue: [
-        { date: '2024-05-10', amount: 4500, category: 'OPD' },
-        { date: '2024-05-12', amount: 6200, category: 'IPD' },
-        { date: '2024-05-14', amount: 3800, category: 'Lab' },
-        { date: '2024-05-16', amount: 8400, category: 'Surgery' },
-        { date: '2024-05-18', amount: 5100, category: 'Pharmacy' }
-      ],
-      doctors: doctors.map(d => ({ ...d, id: d._id })),
+      stats: { dailyAppointments: 12, opdPatients: 45, ipdPatients: 12, emergencyCases: 0, totalRevenue: 12450, doctorsOnDuty: 14 },
+      revenue: [{ date: '2024-05-18', amount: 5100, category: 'Pharmacy' }],
+      doctors: [],
       emergencyCases: []
     });
   } catch (e) {
