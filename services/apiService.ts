@@ -1,4 +1,3 @@
-
 import { 
   DashboardStats, User, Patient, Doctor, Appointment, 
   RevenueData, EmergencyCase, UserRole, HospitalDepartment,
@@ -8,220 +7,205 @@ import {
   CMSBlog, CMSSlider, CMSSEOSetting, LeaveRequest, 
   DoctorPerformance, InternalAnnouncement, SMSLog, EmailLog, 
   HospitalSettings, EmergencyNumber, PaymentGateway, BackupLog, 
-  SecuritySetting, AccessHistory, TimeSlot, CustomReport, PatientGrowthEntry,
-  PatientStatus
+  SecuritySetting, AccessHistory, TimeSlot, CustomReport, PatientGrowthEntry
 } from '../types';
 import { API_BASE, getHeaders, handleResponse } from '../api_config';
 
 class ApiService {
+  /**
+   * Universal fetch wrapper to catch network-level errors
+   */
+  private async safeFetch(url: string, options: RequestInit = {}) {
+    try {
+      const response = await fetch(url, options);
+      return await handleResponse(response);
+    } catch (error: any) {
+      if (error.message === 'Failed to fetch') {
+        throw new Error("Unable to connect to the Clinical Server. Please check your network connection.");
+      }
+      throw error;
+    }
+  }
+
   // --- AUTHENTICATION ---
   async login(credentials: any): Promise<{ user: User; token: string }> {
-    const response = await fetch(`${API_BASE}/auth/login`, {
+    return this.safeFetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(credentials)
     });
-    return handleResponse(response);
   }
 
   // --- DASHBOARD ---
   async getInitDashboard(): Promise<{ stats: DashboardStats; revenue: RevenueData[]; doctors: Doctor[]; emergencyCases: EmergencyCase[] }> {
-    const response = await fetch(`${API_BASE}/init-dashboard`, { headers: getHeaders() });
-    return handleResponse(response);
+    return this.safeFetch(`${API_BASE}/init-dashboard`, { headers: getHeaders() });
   }
 
   // --- CORE MODULES ---
   async getUsers(): Promise<User[]> {
-    const response = await fetch(`${API_BASE}/users`, { headers: getHeaders() });
-    return handleResponse(response);
+    return this.safeFetch(`${API_BASE}/users`, { headers: getHeaders() });
   }
 
   async getPatients(): Promise<Patient[]> {
-    const response = await fetch(`${API_BASE}/patients`, { headers: getHeaders() });
-    return handleResponse(response);
+    return this.safeFetch(`${API_BASE}/patients`, { headers: getHeaders() });
   }
 
   async getDoctors(): Promise<Doctor[]> {
-    const response = await fetch(`${API_BASE}/doctors`, { headers: getHeaders() });
-    return handleResponse(response);
+    return this.safeFetch(`${API_BASE}/doctors`, { headers: getHeaders() });
   }
 
   async getAppointments(): Promise<Appointment[]> {
-    const response = await fetch(`${API_BASE}/appointments`, { headers: getHeaders() });
-    return handleResponse(response);
+    return this.safeFetch(`${API_BASE}/appointments`, { headers: getHeaders() });
   }
 
   async getDepartments(): Promise<HospitalDepartment[]> {
-    const response = await fetch(`${API_BASE}/departments`, { headers: getHeaders() });
-    return handleResponse(response);
+    return this.safeFetch(`${API_BASE}/departments`, { headers: getHeaders() });
   }
 
   async getHospitalSettings(): Promise<HospitalSettings> {
-    const response = await fetch(`${API_BASE}/settings/hospital`, { headers: getHeaders() });
-    return handleResponse(response);
+    return this.safeFetch(`${API_BASE}/settings/hospital`, { headers: getHeaders() });
   }
 
   // --- CRUD WRITERS ---
   async registerPatient(data: Partial<Patient>): Promise<Patient> {
-    const response = await fetch(`${API_BASE}/patients`, {
+    return this.safeFetch(`${API_BASE}/patients`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(data)
     });
-    return handleResponse(response);
   }
 
   async updatePatient(id: string, updates: Partial<Patient>): Promise<Patient> {
-    const response = await fetch(`${API_BASE}/patients/${id}`, {
+    return this.safeFetch(`${API_BASE}/patients/${id}`, {
       method: 'PATCH',
       headers: getHeaders(),
       body: JSON.stringify(updates)
     });
-    return handleResponse(response);
   }
 
   async createAppointment(data: any): Promise<Appointment> {
-    const response = await fetch(`${API_BASE}/appointments`, {
+    return this.safeFetch(`${API_BASE}/appointments`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(data)
     });
-    return handleResponse(response);
   }
 
   async updateAppointmentStatus(id: string, status: string): Promise<boolean> {
-    const response = await fetch(`${API_BASE}/appointments/${id}/status`, {
+    await this.safeFetch(`${API_BASE}/appointments/${id}/status`, {
       method: 'PATCH',
       headers: getHeaders(),
       body: JSON.stringify({ status })
     });
-    await handleResponse(response);
     return true;
   }
 
   async addEHRRecord(pId: string, data: any): Promise<boolean> {
-    const response = await fetch(`${API_BASE}/patients/${pId}/ehr`, {
+    await this.safeFetch(`${API_BASE}/patients/${pId}/ehr`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(data)
     });
-    await handleResponse(response);
     return true;
   }
 
   async addPrescription(pId: string, data: any): Promise<boolean> {
-    const response = await fetch(`${API_BASE}/patients/${pId}/prescriptions`, {
+    await this.safeFetch(`${API_BASE}/patients/${pId}/prescriptions`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(data)
     });
-    await handleResponse(response);
     return true;
   }
 
   // --- SPECIALIZED MODULES ---
   async getLabTests(): Promise<LabTest[]> {
-    const response = await fetch(`${API_BASE}/lab/tests`, { headers: getHeaders() });
-    return handleResponse(response);
+    return this.safeFetch(`${API_BASE}/lab/tests`, { headers: getHeaders() });
   }
 
   async getLabSamples(): Promise<LabSample[]> {
-    const response = await fetch(`${API_BASE}/lab/samples`, { headers: getHeaders() });
-    return handleResponse(response);
+    return this.safeFetch(`${API_BASE}/lab/samples`, { headers: getHeaders() });
   }
 
   async updateSampleStatus(id: string, status: string, result?: string): Promise<boolean> {
-    const response = await fetch(`${API_BASE}/lab/samples/${id}`, {
+    await this.safeFetch(`${API_BASE}/lab/samples/${id}`, {
       method: 'PATCH',
       headers: getHeaders(),
       body: JSON.stringify({ status, result })
     });
-    await handleResponse(response);
     return true;
   }
 
   async getRadiologyOrders(): Promise<RadiologyOrder[]> {
-    const response = await fetch(`${API_BASE}/radiology/orders`, { headers: getHeaders() });
-    return handleResponse(response);
+    return this.safeFetch(`${API_BASE}/radiology/orders`, { headers: getHeaders() });
   }
 
   async createRadiologyOrder(data: any): Promise<any> {
-    const response = await fetch(`${API_BASE}/radiology/orders`, {
+    return this.safeFetch(`${API_BASE}/radiology/orders`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(data)
     });
-    return handleResponse(response);
   }
 
   async updateRadiologyStatus(id: string, status: string, notes?: string): Promise<boolean> {
-    const response = await fetch(`${API_BASE}/radiology/orders/${id}`, {
+    await this.safeFetch(`${API_BASE}/radiology/orders/${id}`, {
       method: 'PATCH',
       headers: getHeaders(),
       body: JSON.stringify({ status, notes })
     });
-    await handleResponse(response);
     return true;
   }
 
   async getPharmacyInventory(): Promise<PharmacyItem[]> {
-    const response = await fetch(`${API_BASE}/pharmacy/inventory`, { headers: getHeaders() });
-    return handleResponse(response);
+    return this.safeFetch(`${API_BASE}/pharmacy/inventory`, { headers: getHeaders() });
   }
 
   async getInvoices(): Promise<Invoice[]> {
-    const response = await fetch(`${API_BASE}/billing/invoices`, { headers: getHeaders() });
-    return handleResponse(response);
+    return this.safeFetch(`${API_BASE}/billing/invoices`, { headers: getHeaders() });
   }
 
   async updateInvoice(id: string, updates: Partial<Invoice>): Promise<boolean> {
-    const response = await fetch(`${API_BASE}/billing/invoices/${id}`, {
+    await this.safeFetch(`${API_BASE}/billing/invoices/${id}`, {
       method: 'PATCH',
       headers: getHeaders(),
       body: JSON.stringify(updates)
     });
-    await handleResponse(response);
     return true;
   }
 
   async getInsurancePanels(): Promise<InsurancePanel[]> {
-    const response = await fetch(`${API_BASE}/insurance/panels`, { headers: getHeaders() });
-    return handleResponse(response);
+    return this.safeFetch(`${API_BASE}/insurance/panels`, { headers: getHeaders() });
   }
 
   async getInsuranceClaims(): Promise<InsuranceClaim[]> {
-    const response = await fetch(`${API_BASE}/insurance/claims`, { headers: getHeaders() });
-    return handleResponse(response);
+    return this.safeFetch(`${API_BASE}/insurance/claims`, { headers: getHeaders() });
   }
 
   async updateClaimStatus(id: string, data: any): Promise<boolean> {
-    const response = await fetch(`${API_BASE}/insurance/claims/${id}`, {
+    await this.safeFetch(`${API_BASE}/insurance/claims/${id}`, {
       method: 'PATCH',
       headers: getHeaders(),
       body: JSON.stringify(data)
     });
-    await handleResponse(response);
     return true;
   }
 
   async getCMSPages(): Promise<CMSPage[]> {
-    const response = await fetch(`${API_BASE}/cms/pages`, { headers: getHeaders() });
-    return handleResponse(response);
+    return this.safeFetch(`${API_BASE}/cms/pages`, { headers: getHeaders() });
   }
 
   async updateCMSPage(id: string, data: any): Promise<boolean> {
-    const response = await fetch(`${API_BASE}/cms/pages/${id}`, {
+    await this.safeFetch(`${API_BASE}/cms/pages/${id}`, {
       method: 'PATCH',
       headers: getHeaders(),
       body: JSON.stringify(data)
     });
-    await handleResponse(response);
     return true;
   }
 
   async getInternalAnnouncements(): Promise<InternalAnnouncement[]> {
-    const response = await fetch(`${API_BASE}/communication/announcements`, { headers: getHeaders() });
-    return handleResponse(response);
+    return this.safeFetch(`${API_BASE}/communication/announcements`, { headers: getHeaders() });
   }
 
   // --- PLACEHOLDERS / TO BE IMPLEMENTED AS NEEDED ---
@@ -243,12 +227,11 @@ class ApiService {
   async updateUserRole(userId: string, newRole: UserRole): Promise<boolean> { return true; }
   async updateLeaveStatus(id: string, status: string): Promise<boolean> { return true; }
   async updateHospitalSettings(data: any): Promise<boolean> { 
-    const response = await fetch(`${API_BASE}/settings/hospital`, {
+    await this.safeFetch(`${API_BASE}/settings/hospital`, {
       method: 'PATCH',
       headers: getHeaders(),
       body: JSON.stringify(data)
     });
-    await handleResponse(response);
     return true; 
   }
   async getEmergencyNumbers(): Promise<EmergencyNumber[]> { return []; }
