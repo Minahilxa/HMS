@@ -26,6 +26,8 @@ import {
 } from './types';
 
 const App: React.FC = () => {
+  console.log("HealSync HIS: [3/3] App component rendering...");
+  
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -41,7 +43,7 @@ const App: React.FC = () => {
 
   const loadData = useCallback(async () => {
     if (isFetched.current) return;
-    console.log("HealSync HIS: Requesting clinical data synchronization...");
+    console.log("HealSync HIS: Initiating clinical data synchronization...");
     setLoading(true);
     setError(null);
     try {
@@ -53,8 +55,8 @@ const App: React.FC = () => {
       setEmergencyCases(data.emergencyCases);
       isFetched.current = true;
     } catch (err: any) {
-      console.error('HealSync HIS: Synchronization Error:', err);
-      setError("Clinical Server Connection Failed. Ensure the backend is running at http://localhost:5000.");
+      console.error('HealSync HIS: Sync Error:', err);
+      setError("Clinical Server Connection Failed. Ensure the backend (port 5000) is running.");
     } finally {
       setLoading(false);
     }
@@ -62,22 +64,21 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const checkSession = () => {
-      console.log("HealSync HIS: Checking for existing session...");
+      console.log("HealSync HIS: Checking local session tokens...");
       try {
         const token = localStorage.getItem('his_token');
         const savedUser = localStorage.getItem('his_user');
         
         if (token && savedUser) {
-          console.log("HealSync HIS: Found valid session. Restoring user context.");
-          const user = JSON.parse(savedUser);
-          setCurrentUser(user);
+          console.log("HealSync HIS: Session restored for:", JSON.parse(savedUser).name);
+          setCurrentUser(JSON.parse(savedUser));
           setIsLoggedIn(true);
         } else {
-          console.log("HealSync HIS: No active session found.");
+          console.log("HealSync HIS: No session found. Redirecting to login.");
           setLoading(false);
         }
       } catch (e) {
-        console.error("HealSync HIS: Session recovery failure:", e);
+        console.error("HealSync HIS: Session check failed", e);
         handleLogout();
       }
     };
@@ -106,7 +107,7 @@ const App: React.FC = () => {
     setStats(null);
     isFetched.current = false;
     setLoading(false);
-    console.log("HealSync HIS: Session terminated.");
+    console.log("HealSync HIS: Session cleared.");
   };
 
   if (!isLoggedIn && !loading) return <LoginPage onLogin={handleLogin} />;
