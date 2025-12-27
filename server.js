@@ -12,7 +12,6 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
 const SECRET = process.env.JWT_SECRET || 'healsync_secret_123';
-// Use direct IPv4 to bypass IPv6 resolution overhead (fixes 2s delays on some platforms)
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/healsync_his';
 
 // --- SCHEMAS ---
@@ -102,7 +101,7 @@ mongoose.connect(MONGODB_URI, {
     await seed();
   })
   .catch(err => {
-    console.warn('⚠️ MongoDB connection issue. Fallback auth enabled.');
+    console.warn('⚠️ MongoDB connection issue. Fallback auth enabled for admin/password123.');
   });
 
 const seed = async () => {
@@ -152,7 +151,7 @@ app.post('/api/auth/login', async (req, res) => {
 
   try {
     if (!isDbConnected) {
-      return res.status(503).json({ message: 'Clinical intelligence engine is warming up. Please use demo credentials for now.' });
+      return res.status(503).json({ message: 'Clinical intelligence engine is warming up. Please use demo credentials (admin / password123) for now.' });
     }
 
     const user = await User.findOne({ username, password }).lean();
