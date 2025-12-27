@@ -114,7 +114,7 @@ const authorize = (allowedRoles) => (req, res, next) => {
 
 // Root status route
 app.get('/', (req, res) => {
-  res.send('HealSync HIS Clinical API is Running. Use Port 3000 for the Frontend UI.');
+  res.json({ status: 'active', service: 'HealSync HIS Clinical API' });
 });
 
 app.post('/api/auth/login', async (req, res) => {
