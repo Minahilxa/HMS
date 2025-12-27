@@ -41,18 +41,20 @@ const App: React.FC = () => {
 
   const loadData = useCallback(async () => {
     if (isFetched.current) return;
+    console.log("HealSync HIS: Requesting clinical data synchronization...");
     setLoading(true);
     setError(null);
     try {
       const data = await apiService.getInitDashboard();
+      console.log("HealSync HIS: Dashboard data synchronized successfully.");
       setStats(data.stats);
       setRevenue(data.revenue);
       setDoctors(data.doctors);
       setEmergencyCases(data.emergencyCases);
       isFetched.current = true;
     } catch (err: any) {
-      console.error('❌ Data Sync Error:', err);
-      setError("Clinical Server Connection Failed. Ensure the backend is running.");
+      console.error('HealSync HIS: Synchronization Error:', err);
+      setError("Clinical Server Connection Failed. Ensure the backend is running at http://localhost:5000.");
     } finally {
       setLoading(false);
     }
@@ -60,19 +62,22 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const checkSession = () => {
+      console.log("HealSync HIS: Checking for existing session...");
       try {
         const token = localStorage.getItem('his_token');
         const savedUser = localStorage.getItem('his_user');
         
         if (token && savedUser) {
+          console.log("HealSync HIS: Found valid session. Restoring user context.");
           const user = JSON.parse(savedUser);
           setCurrentUser(user);
           setIsLoggedIn(true);
         } else {
+          console.log("HealSync HIS: No active session found.");
           setLoading(false);
         }
       } catch (e) {
-        console.error("Session Recovery Failed:", e);
+        console.error("HealSync HIS: Session recovery failure:", e);
         handleLogout();
       }
     };
@@ -90,6 +95,7 @@ const App: React.FC = () => {
     setCurrentUser(user);
     setIsLoggedIn(true);
     isFetched.current = false; 
+    console.log("HealSync HIS: User logged in:", user.name);
   };
 
   const handleLogout = () => {
@@ -100,6 +106,7 @@ const App: React.FC = () => {
     setStats(null);
     isFetched.current = false;
     setLoading(false);
+    console.log("HealSync HIS: Session terminated.");
   };
 
   if (!isLoggedIn && !loading) return <LoginPage onLogin={handleLogin} />;

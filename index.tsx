@@ -2,11 +2,12 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-console.log("HealSync HIS: Initializing Client Application...");
+console.log("HealSync HIS: Client Application Booting...");
 
 const rootElement = document.getElementById('root');
 
 if (rootElement) {
+  console.log("HealSync HIS: Root element found. Mounting React...");
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <React.StrictMode>
@@ -14,5 +15,5 @@ if (rootElement) {
     </React.StrictMode>
   );
 } else {
-  console.error("Critical: Root element 'root' not found in DOM.");
+  console.error("HealSync HIS Critical Error: Root element 'root' not found in index.html.");
 }

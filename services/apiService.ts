@@ -9,7 +9,11 @@ import {
   HospitalSettings, EmergencyNumber, PaymentGateway, BackupLog, 
   SecuritySetting, AccessHistory, TimeSlot, CustomReport, PatientGrowthEntry
 } from '../types';
+
+// Importing from root level api_config
 import { API_BASE, getHeaders, handleResponse } from '../api_config';
+
+console.log("HealSync HIS: API Service initialized with Base URL:", API_BASE);
 
 class ApiService {
   /**
@@ -17,9 +21,11 @@ class ApiService {
    */
   private async safeFetch(url: string, options: RequestInit = {}) {
     try {
+      console.debug(`HealSync HIS API: Calling ${url}`);
       const response = await fetch(url, options);
       return await handleResponse(response);
     } catch (error: any) {
+      console.error(`HealSync HIS API Error [${url}]:`, error.message);
       if (error.message === 'Failed to fetch') {
         throw new Error("Unable to connect to the Clinical Server. Please check your network connection.");
       }
