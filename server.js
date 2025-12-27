@@ -32,14 +32,12 @@ const PatientSchema = new mongoose.Schema({
 });
 const Patient = mongoose.model('Patient', PatientSchema);
 
-const DoctorSchema = new mongoose.Schema({
-  name: String, specialization: String, department: String, status: String, room: String
-});
-const Doctor = mongoose.model('Doctor', DoctorSchema);
-
 // --- MONGODB CONNECTION ---
 let isDbConnected = false;
-mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 3000 })
+mongoose.connect(MONGODB_URI, { 
+  serverSelectionTimeoutMS: 5000,
+  autoIndex: true 
+})
   .then(async () => {
     isDbConnected = true;
     console.log('✅ Connected to MongoDB');
@@ -69,7 +67,7 @@ const seed = async () => {
 // --- AUTH HELPERS ---
 const generateToken = (user) => {
   const payload = {
-    id: user._id || user.id,
+    id: user._id ? user._id.toString() : user.id,
     role: user.role,
     name: user.name,
     email: user.email
@@ -97,11 +95,20 @@ const authenticate = (req, res, next) => {
   }
 };
 
+const authorize = (allowedRoles) => (req, res, next) => {
+  if (!req.user || !allowedRoles.includes(req.user.role)) {
+    return res.status(403).json({ 
+      message: `Access Denied: Your role (${req.user?.role || 'Guest'}) lacks permission.` 
+    });
+  }
+  next();
+};
+
 // --- ROUTES ---
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
   
-  // High-Availability Bypass for local development
+  // 1. Emergency Bypass (Works without DB)
   const bypassUsers = {
     'admin': { id: 'demo-admin', name: 'System Admin', role: 'Admin', email: 'admin@healsync.com' },
     'doctor': { id: 'demo-doctor', name: 'Dr. Sarah Wilson', role: 'Doctor', email: 'sarah@healsync.com' },
@@ -113,9 +120,10 @@ app.post('/api/auth/login', async (req, res) => {
     return res.json({ user, token: generateToken(user) });
   }
 
+  // 2. Database Auth
   try {
     if (!isDbConnected) {
-      return res.status(503).json({ message: 'Database offline. Use bypass credentials.' });
+      return res.status(503).json({ message: 'Clinical Database Offline. Please use demo credentials.' });
     }
 
     const user = await User.findOne({ username, password }).lean();
@@ -124,10 +132,11 @@ app.post('/api/auth/login', async (req, res) => {
       delete userRes._id; delete userRes.password; delete userRes.__v;
       res.json({ user: userRes, token: generateToken(userRes) });
     } else {
-      res.status(401).json({ message: 'Invalid username or password.' });
+      res.status(401).json({ message: 'Invalid Staff Credentials.' });
     }
   } catch (err) {
-    res.status(500).json({ message: 'Internal authentication failure.' });
+    console.error("Auth Failure:", err);
+    res.status(500).json({ message: 'Internal Authentication Service Error.' });
   }
 });
 
@@ -135,12 +144,27 @@ app.get('/api/init-dashboard', authenticate, async (req, res) => {
   try {
     res.json({
       stats: { dailyAppointments: 12, opdPatients: 45, ipdPatients: 12, emergencyCases: 0, totalRevenue: 12450, doctorsOnDuty: 14 },
-      revenue: [{ date: '2024-05-18', amount: 5100, category: 'Pharmacy' }],
+      revenue: [
+        { date: '2024-05-18', amount: 5100, category: 'Pharmacy' },
+        { date: '2024-05-19', amount: 3200, category: 'OPD' },
+        { date: '2024-05-20', amount: 4150, category: 'IPD' }
+      ],
       doctors: [],
       emergencyCases: []
     });
   } catch (e) {
     res.status(500).json({ message: 'Failed to synchronize dashboard metrics' });
+  }
+});
+
+// Example of role-protected patient route
+app.get('/api/patients', authenticate, authorize(['Admin', 'Doctor', 'Nurse']), async (req, res) => {
+  try {
+    if (!isDbConnected) return res.json([]);
+    const patients = await Patient.find().lean();
+    res.json(patients.map(p => ({ ...p, id: p._id.toString() })));
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to retrieve patient registry.' });
   }
 });
 

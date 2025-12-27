@@ -60,19 +60,20 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const checkSession = () => {
-      const token = localStorage.getItem('his_token');
-      const savedUser = localStorage.getItem('his_user');
-      
-      if (token && savedUser) {
-        try {
+      try {
+        const token = localStorage.getItem('his_token');
+        const savedUser = localStorage.getItem('his_user');
+        
+        if (token && savedUser) {
           const user = JSON.parse(savedUser);
           setCurrentUser(user);
           setIsLoggedIn(true);
-        } catch (e) {
-          handleLogout();
+        } else {
+          setLoading(false);
         }
-      } else {
-        setLoading(false);
+      } catch (e) {
+        console.error("Session Recovery Failed:", e);
+        handleLogout();
       }
     };
     checkSession();
@@ -88,7 +89,7 @@ const App: React.FC = () => {
     localStorage.setItem('his_user', JSON.stringify(user));
     setCurrentUser(user);
     setIsLoggedIn(true);
-    isFetched.current = false; // Reset to allow fresh fetch
+    isFetched.current = false; 
   };
 
   const handleLogout = () => {
