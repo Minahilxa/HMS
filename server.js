@@ -25,7 +25,6 @@ const UserSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', UserSchema);
 
-// Additional schemas for clinical data
 const PatientSchema = new mongoose.Schema({
   name: String, age: Number, gender: String, status: String, admissionDate: String, diagnosis: String,
   medicalHistory: Array, prescriptions: Array
@@ -66,12 +65,16 @@ const seed = async () => {
 
 // --- AUTH HELPERS ---
 const generateToken = (user) => {
+  // Ensure we always have a string ID for the JWT payload
+  const userId = user._id ? user._id.toString() : (user.id || 'anonymous');
+  
   const payload = {
-    id: user._id ? user._id.toString() : user.id,
+    id: userId,
     role: user.role,
     name: user.name,
     email: user.email
   };
+  
   return jwt.sign(payload, SECRET, { expiresIn: '12h' });
 };
 
@@ -88,17 +91,28 @@ const authenticate = (req, res, next) => {
     req.user = decoded;
     next();
   } catch (err) {
+    console.error("JWT Verification Error:", err.name);
+    
+    // Explicitly handle expired sessions vs invalid tokens
     if (err.name === 'TokenExpiredError') {
-      return res.status(401).json({ message: 'Session expired. Please re-authenticate.' });
+      return res.status(401).json({ 
+        message: 'Your session has expired. Please re-authenticate for security.',
+        code: 'TOKEN_EXPIRED'
+      });
     }
-    return res.status(403).json({ message: 'Invalid session token. Access denied.' });
+    
+    return res.status(403).json({ 
+      message: 'Access Denied: Invalid security session.',
+      code: 'INVALID_TOKEN'
+    });
   }
 };
 
+// Role-based validation middleware
 const authorize = (allowedRoles) => (req, res, next) => {
   if (!req.user || !allowedRoles.includes(req.user.role)) {
     return res.status(403).json({ 
-      message: `Access Denied: Your role (${req.user?.role || 'Guest'}) lacks permission.` 
+      message: `Permission Denied: Your staff role (${req.user?.role || 'Guest'}) does not have clearance for this operation.` 
     });
   }
   next();
@@ -108,40 +122,53 @@ const authorize = (allowedRoles) => (req, res, next) => {
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
   
-  // 1. Emergency Bypass (Works without DB)
+  // 1. Emergency Bypass (Ensures system is accessible during DB maintenance)
   const bypassUsers = {
-    'admin': { id: 'demo-admin', name: 'System Admin', role: 'Admin', email: 'admin@healsync.com' },
-    'doctor': { id: 'demo-doctor', name: 'Dr. Sarah Wilson', role: 'Doctor', email: 'sarah@healsync.com' },
-    'nurse': { id: 'demo-nurse', name: 'Nurse Joy', role: 'Nurse', email: 'joy@healsync.com' }
+    'admin': { id: 'bypass-admin', name: 'System Admin', role: 'Admin', email: 'admin@healsync.com' },
+    'doctor': { id: 'bypass-doctor', name: 'Dr. Sarah Wilson', role: 'Doctor', email: 'sarah@healsync.com' },
+    'nurse': { id: 'bypass-nurse', name: 'Nurse Joy', role: 'Nurse', email: 'joy@healsync.com' }
   };
 
   if (bypassUsers[username] && password === 'password123') {
     const user = bypassUsers[username];
-    return res.json({ user, token: generateToken(user) });
+    return res.json({ 
+      user, 
+      token: generateToken(user) 
+    });
   }
 
-  // 2. Database Auth
+  // 2. Production Database Authentication
   try {
     if (!isDbConnected) {
-      return res.status(503).json({ message: 'Clinical Database Offline. Please use demo credentials.' });
+      return res.status(503).json({ 
+        message: 'Clinical Data Service is currently unavailable. Please use emergency staff credentials.' 
+      });
     }
 
     const user = await User.findOne({ username, password }).lean();
     if (user) {
+      // Map MongoDB _id to standard id
       const userRes = { ...user, id: user._id.toString() };
-      delete userRes._id; delete userRes.password; delete userRes.__v;
-      res.json({ user: userRes, token: generateToken(userRes) });
+      delete userRes._id; 
+      delete userRes.password; 
+      delete userRes.__v;
+      
+      res.json({ 
+        user: userRes, 
+        token: generateToken(userRes) 
+      });
     } else {
-      res.status(401).json({ message: 'Invalid Staff Credentials.' });
+      res.status(401).json({ message: 'Invalid Staff ID or Security Password.' });
     }
   } catch (err) {
-    console.error("Auth Failure:", err);
-    res.status(500).json({ message: 'Internal Authentication Service Error.' });
+    console.error("Auth Failure Details:", err);
+    res.status(500).json({ message: 'The authentication service encountered an internal failure.' });
   }
 });
 
 app.get('/api/init-dashboard', authenticate, async (req, res) => {
   try {
+    // Return metrics
     res.json({
       stats: { dailyAppointments: 12, opdPatients: 45, ipdPatients: 12, emergencyCases: 0, totalRevenue: 12450, doctorsOnDuty: 14 },
       revenue: [
@@ -153,19 +180,19 @@ app.get('/api/init-dashboard', authenticate, async (req, res) => {
       emergencyCases: []
     });
   } catch (e) {
-    res.status(500).json({ message: 'Failed to synchronize dashboard metrics' });
+    res.status(500).json({ message: 'Critical error synchronizing dashboard metrics.' });
   }
 });
 
-// Example of role-protected patient route
-app.get('/api/patients', authenticate, authorize(['Admin', 'Doctor', 'Nurse']), async (req, res) => {
+// Protect patient data with role validation
+app.get('/api/patients', authenticate, authorize(['Admin', 'Doctor', 'Nurse', 'Super Admin']), async (req, res) => {
   try {
     if (!isDbConnected) return res.json([]);
     const patients = await Patient.find().lean();
     res.json(patients.map(p => ({ ...p, id: p._id.toString() })));
   } catch (err) {
-    res.status(500).json({ message: 'Failed to retrieve patient registry.' });
+    res.status(500).json({ message: 'Failed to retrieve patient clinical registry.' });
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Clinical Server active on port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`🚀 HealSync HIS active on port ${PORT}`));
