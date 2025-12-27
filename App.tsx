@@ -26,7 +26,7 @@ import {
 } from './types';
 
 const App: React.FC = () => {
-  console.log("HealSync HIS: App component initialized.");
+  console.log("HealSync HIS: App component rendering...");
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -145,7 +145,7 @@ const App: React.FC = () => {
       case 'lab-mgmt': return <LaboratoryManagement />;
       case 'radio-mgmt': return <RadiologyManagement />;
       case 'pharmacy-mgmt': return <PharmacyManagement />;
-      case 'billing-mgmt': return <BillingManagement />;
+      case 'billing-mgmt': return <PharmacyManagement />;
       case 'insurance-mgmt': return <InsuranceManagement />;
       case 'cms-mgmt': return <CMSManagement />;
       case 'reports-mgmt': return <ReportsManagement />;

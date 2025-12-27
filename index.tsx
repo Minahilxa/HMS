@@ -2,12 +2,12 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-console.log("HealSync HIS: Booting Client Application...");
+console.log("HealSync HIS: [1/3] Booting Client Application...");
 
 const rootElement = document.getElementById('root');
 
 if (rootElement) {
-  console.log("HealSync HIS: Root element found. Mounting React tree.");
+  console.log("HealSync HIS: [2/3] Root element found. Mounting React tree.");
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <React.StrictMode>
