@@ -13,19 +13,15 @@ import { API_BASE, getHeaders, handleResponse } from '../api_config';
 
 class ApiService {
   /**
-   * Universal fetch wrapper with detailed diagnostic logging
+   * Universal fetch wrapper to catch network-level errors
    */
   private async safeFetch(url: string, options: RequestInit = {}) {
-    console.debug(`[API CALL] Requesting: ${url}`, options.method || 'GET');
     try {
       const response = await fetch(url, options);
-      console.debug(`[API STATUS] ${url} returned ${response.status} ${response.statusText}`);
       return await handleResponse(response);
     } catch (error: any) {
-      console.error(`[API ERROR] ${url} failed:`, error.message);
-      
       if (error.message === 'Failed to fetch') {
-        throw new Error("Unable to connect to the Clinical Server. Ensure the backend process is running on port 5000.");
+        throw new Error("Unable to connect to the Clinical Server. Please check your network connection.");
       }
       throw error;
     }
