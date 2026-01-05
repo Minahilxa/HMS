@@ -2,26 +2,21 @@
 export const API_BASE = '/api';
 
 /**
- * Enhanced response handler with robust error catching
+ * Enhanced response handler
  */
 export const handleResponse = async (response: Response) => {
-  let data;
   const contentType = response.headers.get("content-type");
+  let data;
 
-  try {
-    if (contentType && contentType.includes("application/json")) {
-      data = await response.json();
-    } else {
-      const text = await response.text();
-      data = { message: text || `Error ${response.status}: ${response.statusText}` };
-    }
-  } catch (e) {
-    data = { message: "Failed to parse server response" };
+  if (contentType && contentType.includes("application/json")) {
+    data = await response.json();
+  } else {
+    const text = await response.text();
+    data = { message: text || `Error ${response.status}` };
   }
 
   if (!response.ok) {
-    const errorMsg = data.message || data.error || `Server returned status ${response.status}`;
-    throw new Error(errorMsg);
+    throw new Error(data.message || data.error || `Server Error: ${response.status}`);
   }
   
   return data;
