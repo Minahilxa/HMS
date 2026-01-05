@@ -11,6 +11,7 @@ const AppointmentManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'online' | 'walk-in' | 'slots'>('online');
   const [showModal, setShowModal] = useState(false);
+  const [showSlotModal, setShowSlotModal] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -54,6 +55,22 @@ const AppointmentManagement: React.FC = () => {
 
     setAppointments(prev => [...prev, newApt]);
     setShowModal(false);
+  };
+
+  const handleCreateSlot = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    await apiService.createSlot({
+      doctorId: formData.get('doctorId') as string,
+      day: formData.get('day') as string,
+      startTime: formData.get('startTime') as string,
+      endTime: formData.get('endTime') as string
+    });
+
+    const updatedSlots = await apiService.getSlots();
+    setSlots(updatedSlots);
+    setShowSlotModal(false);
   };
 
   const filteredApts = appointments.filter(a => 
@@ -136,31 +153,39 @@ const AppointmentManagement: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {slots.map(slot => (
-            <div key={slot.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden group">
-              <div className={`absolute top-0 right-0 w-1.5 h-full ${slot.isAvailable ? 'bg-green-500' : 'bg-red-400'}`}></div>
-              <h4 className="font-bold text-slate-800">{slot.startTime} - {slot.endTime}</h4>
-              <p className="text-xs text-slate-500 mt-1">{slot.day}</p>
-              <div className="mt-4 pt-4 border-t border-slate-50 flex justify-between items-center">
-                <span className={`text-[10px] font-black uppercase ${slot.isAvailable ? 'text-green-600' : 'text-red-500'}`}>
-                  {slot.isAvailable ? 'Available' : 'Booked'}
-                </span>
-                <button className="text-sky-600 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">Edit</button>
+          {slots.map(slot => {
+            const doc = doctors.find(d => d.id === slot.doctorId);
+            return (
+              <div key={slot.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden group">
+                <div className={`absolute top-0 right-0 w-1.5 h-full ${slot.isAvailable ? 'bg-green-500' : 'bg-red-400'}`}></div>
+                <h4 className="font-bold text-slate-800">{slot.startTime} - {slot.endTime}</h4>
+                <p className="text-[10px] text-sky-600 font-bold uppercase tracking-widest">{doc?.name || 'Dr. Unknown'}</p>
+                <p className="text-xs text-slate-500 mt-1">{slot.day}</p>
+                <div className="mt-4 pt-4 border-t border-slate-50 flex justify-between items-center">
+                  <span className={`text-[10px] font-black uppercase ${slot.isAvailable ? 'text-green-600' : 'text-red-500'}`}>
+                    {slot.isAvailable ? 'Available' : 'Booked'}
+                  </span>
+                  <button className="text-sky-600 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">Edit</button>
+                </div>
               </div>
-            </div>
-          ))}
-          <div className="border-2 border-dashed border-slate-200 rounded-3xl p-6 flex flex-col items-center justify-center text-slate-400 hover:border-sky-300 hover:text-sky-400 transition-all cursor-pointer">
+            );
+          })}
+          <div 
+            onClick={() => setShowSlotModal(true)}
+            className="border-2 border-dashed border-slate-200 rounded-3xl p-6 flex flex-col items-center justify-center text-slate-400 hover:border-sky-300 hover:text-sky-400 transition-all cursor-pointer"
+          >
             <svg className="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/></svg>
             <span className="font-bold text-xs uppercase tracking-widest">Add Slot</span>
           </div>
         </div>
       )}
 
+      {/* Appointment Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
              <div className="p-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                <h3 className="text-xl font-bold text-slate-800">New {activeTab} Appointment</h3>
+                <h3 className="text-xl font-bold text-slate-800">New {activeTab === 'slots' ? 'General' : activeTab} Appointment</h3>
                 <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 font-bold text-2xl">&times;</button>
              </div>
              <form onSubmit={handleCreateAppointment} className="p-8 space-y-6">
@@ -196,6 +221,45 @@ const AppointmentManagement: React.FC = () => {
                   </div>
                 </div>
                 <button type="submit" className="w-full bg-sky-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-sky-100 hover:bg-sky-700 transition-all">Confirm Booking</button>
+             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Slot Modal */}
+      {showSlotModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+             <div className="p-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                <h3 className="text-xl font-bold text-slate-800">Add Availability Slot</h3>
+                <button onClick={() => setShowSlotModal(false)} className="text-slate-400 hover:text-slate-600 font-bold text-2xl">&times;</button>
+             </div>
+             <form onSubmit={handleCreateSlot} className="p-8 space-y-6">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Clinician</label>
+                  <select name="doctorId" required className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none">
+                    {doctors.map(d => <option key={d.id} value={d.id}>{d.name} ({d.specialization})</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Day of Week</label>
+                  <select name="day" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none">
+                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
+                      <option key={day}>{day}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Start Time</label>
+                    <input name="startTime" type="time" required className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">End Time</label>
+                    <input name="endTime" type="time" required className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none" />
+                  </div>
+                </div>
+                <button type="submit" className="w-full bg-slate-800 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-black transition-all">Initialize Slot</button>
              </form>
           </div>
         </div>
