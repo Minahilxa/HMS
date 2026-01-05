@@ -149,6 +149,17 @@ class ApiService {
   }
 
   // --- CRUD OPERATIONS ---
+  async updateDoctorStatus(id: string, status: Doctor['status']): Promise<boolean> {
+    const docs = this.getDB<Doctor>(DB_KEYS.DOCTORS);
+    const idx = docs.findIndex(d => d.id === id);
+    if (idx > -1) {
+      docs[idx].status = status;
+      this.saveDB(DB_KEYS.DOCTORS, docs);
+      return true;
+    }
+    return false;
+  }
+
   async createSlot(data: Partial<TimeSlot>): Promise<TimeSlot> {
     const slots = this.getDB<TimeSlot>(DB_KEYS.SLOTS);
     const newSlot = { ...data, id: 'SL' + Date.now(), isAvailable: true } as TimeSlot;

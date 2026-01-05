@@ -23,7 +23,8 @@ import {
   EmergencyCase, 
   RevenueData, 
   DashboardStats, 
-  User 
+  User,
+  UserRole
 } from './types';
 
 const App: React.FC = () => {
@@ -84,6 +85,16 @@ const App: React.FC = () => {
     setStats(null);
   };
 
+  const handleDoctorStatusUpdate = async (id: string, status: Doctor['status']) => {
+    const success = await apiService.updateDoctorStatus(id, status);
+    if (success) {
+      setDoctors(prev => prev.map(d => d.id === id ? { ...d, status } : d));
+      // Refresh stats to reflect new "On Duty" count
+      const updatedStats = await apiService.getDashboardStats();
+      setStats(updatedStats);
+    }
+  };
+
   if (!isLoggedIn && !loading) return <LoginPage onLogin={handleLogin} />;
 
   if (loading) return (
@@ -98,7 +109,15 @@ const App: React.FC = () => {
       case 'dashboard': return <Dashboard stats={stats} setActiveTab={setActiveTab} revenue={revenue} />;
       case 'apt-mgmt': return <AppointmentManagement />;
       case 'patients': return <PatientManagement />;
-      case 'doctors': return <ListSection title="Doctors on Duty" data={doctors} type="doctor" />;
+      case 'doctors': return (
+        <ListSection 
+          title="Doctors on Duty" 
+          data={doctors} 
+          type="doctor" 
+          isAdmin={currentUser?.role === UserRole.SUPER_ADMIN || currentUser?.role === UserRole.ADMIN}
+          onDoctorStatusChange={handleDoctorStatusUpdate}
+        />
+      );
       case 'doctor-mgmt': return <DoctorManagement />;
       case 'dept-mgmt': return <DepartmentManagement />;
       case 'lab-mgmt': return <LaboratoryManagement />;
@@ -123,7 +142,13 @@ const App: React.FC = () => {
   );
 };
 
-const ListSection: React.FC<{ title: string; data: any[]; type: string }> = ({ title, data, type }) => {
+const ListSection: React.FC<{ 
+  title: string; 
+  data: any[]; 
+  type: string; 
+  isAdmin?: boolean;
+  onDoctorStatusChange?: (id: string, status: Doctor['status']) => void;
+}> = ({ title, data, type, isAdmin, onDoctorStatusChange }) => {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <h1 className="text-2xl font-bold text-slate-800 tracking-tight">{title}</h1>
@@ -135,7 +160,8 @@ const ListSection: React.FC<{ title: string; data: any[]; type: string }> = ({ t
                 <>
                   <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-nowrap">Doctor Profile</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-nowrap">Specialization</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center text-nowrap">Status</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center text-nowrap">Availability Status</th>
+                  {isAdmin && <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center text-nowrap">Administrative Action</th>}
                 </>
               ) : (
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Information</th>
@@ -150,13 +176,30 @@ const ListSection: React.FC<{ title: string; data: any[]; type: string }> = ({ t
                     <td className="px-6 py-4 font-bold text-slate-800">{item.name}</td>
                     <td className="px-6 py-4 text-slate-500 text-sm">{item.specialization}</td>
                     <td className="px-6 py-4 text-center">
-                      <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${item.status === 'On Duty' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{item.status}</span>
+                      <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
+                        item.status === 'On Duty' ? 'bg-green-100 text-green-700' : 
+                        item.status === 'On Break' ? 'bg-amber-100 text-amber-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>{item.status}</span>
                     </td>
+                    {isAdmin && (
+                      <td className="px-6 py-4 text-center">
+                        <select 
+                          value={item.status}
+                          onChange={(e) => onDoctorStatusChange?.(item.id, e.target.value as Doctor['status'])}
+                          className="text-[10px] font-bold uppercase bg-slate-100 border-none rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-sky-500 outline-none transition-all cursor-pointer hover:bg-slate-200"
+                        >
+                          <option value="On Duty">On Duty</option>
+                          <option value="On Break">On Break</option>
+                          <option value="Off Duty">Off Duty</option>
+                        </select>
+                      </td>
+                    )}
                   </>
                 )}
               </tr>
             ))}
-            {!data?.length && <tr><td colSpan={3} className="p-10 text-center text-slate-400 italic">No records found. Use management modules to add data.</td></tr>}
+            {!data?.length && <tr><td colSpan={isAdmin ? 4 : 3} className="p-10 text-center text-slate-400 italic">No records found. Use management modules to add data.</td></tr>}
           </tbody>
         </table>
       </div>
