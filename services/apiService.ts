@@ -9,7 +9,7 @@ import {
   DoctorPerformance, InternalAnnouncement, SMSLog, EmailLog, 
   HospitalSettings, EmergencyNumber, PaymentGateway, BackupLog, 
   SecuritySetting, AccessHistory, TimeSlot, CustomReport, PatientGrowthEntry,
-  PatientStatus, AppointmentSource, BillingCategory
+  PatientStatus, AppointmentSource, BillingCategory, EHRRecord, Prescription
 } from '../types';
 
 const DB_KEYS = {
@@ -231,6 +231,38 @@ class ApiService {
     return true; 
   }
 
+  async addEHRRecord(patientId: string, record: Partial<EHRRecord>): Promise<boolean> {
+    const pts = this.getDB<Patient>(DB_KEYS.PATIENTS);
+    const idx = pts.findIndex(p => p.id === patientId);
+    if (idx > -1) {
+      const newRecord = { 
+        ...record, 
+        id: 'EHR' + Date.now(), 
+        date: record.date || new Date().toISOString().split('T')[0] 
+      } as EHRRecord;
+      pts[idx].medicalHistory = [...(pts[idx].medicalHistory || []), newRecord];
+      this.saveDB(DB_KEYS.PATIENTS, pts);
+      return true;
+    }
+    return false;
+  }
+
+  async addPrescription(patientId: string, prescription: Partial<Prescription>): Promise<boolean> {
+    const pts = this.getDB<Patient>(DB_KEYS.PATIENTS);
+    const idx = pts.findIndex(p => p.id === patientId);
+    if (idx > -1) {
+      const newPres = { 
+        ...prescription, 
+        id: 'RX' + Date.now(), 
+        date: prescription.date || new Date().toISOString().split('T')[0] 
+      } as Prescription;
+      pts[idx].prescriptions = [...(pts[idx].prescriptions || []), newPres];
+      this.saveDB(DB_KEYS.PATIENTS, pts);
+      return true;
+    }
+    return false;
+  }
+
   // --- STUBBED METHODS (For non-core modules) ---
   async getDashboardStats() { return (await this.getInitDashboard()).stats; }
   async getRevenueSummary() { return (await this.getInitDashboard()).revenue; }
@@ -258,8 +290,6 @@ class ApiService {
   async updateCMSPage(id: string, d: any) { return true; }
   async runManualBackup() { return { status: 'Success' }; }
   async toggleSecuritySetting(id: string) { return true; }
-  async addEHRRecord(id: string, d: any) { return true; }
-  async addPrescription(id: string, d: any) { return true; }
   async createAnnouncement(d: any) { return true; }
   async deleteAnnouncement(id: string) { return true; }
   async sendSMS(d: any) { return true; }

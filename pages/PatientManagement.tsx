@@ -9,6 +9,8 @@ const PatientManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [showRegModal, setShowRegModal] = useState(false);
+  const [showEHRModal, setShowEHRModal] = useState(false);
+  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
   const [viewTab, setViewTab] = useState<'ehr' | 'prescriptions' | 'discharge'>('ehr');
 
   // Form States
@@ -31,6 +33,7 @@ const PatientManagement: React.FC = () => {
     e.preventDefault();
     await apiService.registerPatient(newPatient);
     setShowRegModal(false);
+    setNewPatient({ name: '', age: 0, gender: 'Male', status: PatientStatus.OPD, diagnosis: '' });
     loadPatients();
   };
 
@@ -42,30 +45,53 @@ const PatientManagement: React.FC = () => {
     }
   };
 
-  const handleAddEHR = async (patientId: string) => {
-    const condition = prompt("Enter Condition:");
-    const treatment = prompt("Enter Treatment:");
-    if (condition && treatment) {
-      await apiService.addEHRRecord(patientId, { condition, treatment, notes: 'Added via Patient Management Portal' });
-      loadPatients();
-      // Refresh selected patient ref
-      const updated = await apiService.getPatients();
-      setSelectedPatient(updated.find(p => p.id === patientId) || null);
-    }
+  const handleSubmitEHR = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selectedPatient) return;
+    
+    const formData = new FormData(e.currentTarget);
+    const record = {
+      condition: formData.get('condition') as string,
+      treatment: formData.get('treatment') as string,
+      notes: formData.get('notes') as string,
+      date: formData.get('date') as string || new Date().toISOString().split('T')[0]
+    };
+
+    await apiService.addEHRRecord(selectedPatient.id, record);
+    setShowEHRModal(false);
+    
+    // Refresh UI
+    const updated = await apiService.getPatients();
+    setPatients(updated);
+    setSelectedPatient(updated.find(p => p.id === selectedPatient.id) || null);
   };
 
-  const handleAddPrescription = async (patientId: string) => {
-    const medName = prompt("Medication Name:");
-    const dosage = prompt("Dosage (e.g. 500mg):");
-    if (medName && dosage) {
-      await apiService.addPrescription(patientId, {
-        doctorName: 'Dr. Admin',
-        medications: [{ name: medName, dosage, frequency: 'Once daily', duration: '7 days' }]
-      });
-      loadPatients();
-      const updated = await apiService.getPatients();
-      setSelectedPatient(updated.find(p => p.id === patientId) || null);
-    }
+  const handleSubmitPrescription = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selectedPatient) return;
+
+    const formData = new FormData(e.currentTarget);
+    const prescription: Partial<Prescription> = {
+      doctorName: formData.get('doctorName') as string,
+      date: formData.get('date') as string || new Date().toISOString().split('T')[0],
+      medications: [
+        {
+          name: formData.get('medName') as string,
+          dosage: formData.get('dosage') as string,
+          frequency: formData.get('frequency') as string,
+          duration: formData.get('duration') as string
+        }
+      ],
+      notes: formData.get('notes') as string
+    };
+
+    await apiService.addPrescription(selectedPatient.id, prescription);
+    setShowPrescriptionModal(false);
+
+    // Refresh UI
+    const updated = await apiService.getPatients();
+    setPatients(updated);
+    setSelectedPatient(updated.find(p => p.id === selectedPatient.id) || null);
   };
 
   if (loading) {
@@ -171,7 +197,7 @@ const PatientManagement: React.FC = () => {
                     <div className="space-y-4">
                       <div className="flex justify-between items-center mb-2">
                         <h4 className="font-bold text-slate-700">Clinical History</h4>
-                        <button onClick={() => handleAddEHR(selectedPatient.id)} className="text-sky-600 text-xs font-bold flex items-center hover:underline">
+                        <button onClick={() => setShowEHRModal(true)} className="text-sky-600 text-xs font-bold flex items-center hover:underline">
                           <Icons.EHR className="w-4 h-4 mr-1" /> Add Entry
                         </button>
                       </div>
@@ -200,7 +226,7 @@ const PatientManagement: React.FC = () => {
                     <div className="space-y-4">
                       <div className="flex justify-between items-center mb-2">
                         <h4 className="font-bold text-slate-700">Medication Logs</h4>
-                        <button onClick={() => handleAddPrescription(selectedPatient.id)} className="text-sky-600 text-xs font-bold flex items-center hover:underline">
+                        <button onClick={() => setShowPrescriptionModal(true)} className="text-sky-600 text-xs font-bold flex items-center hover:underline">
                           <Icons.Prescription className="w-4 h-4 mr-1" /> New Prescription
                         </button>
                       </div>
@@ -223,6 +249,7 @@ const PatientManagement: React.FC = () => {
                                   </div>
                                 ))}
                               </div>
+                              {pres.notes && <p className="text-[10px] text-slate-500 mt-2 italic">Note: {pres.notes}</p>}
                             </div>
                           ))}
                         </div>
@@ -283,17 +310,17 @@ const PatientManagement: React.FC = () => {
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-100 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
             <div className="p-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
               <h3 className="text-xl font-bold text-slate-800">New Patient Registration</h3>
-              <button onClick={() => setShowRegModal(false)} className="text-slate-400 hover:text-slate-600">&times;</button>
+              <button onClick={() => setShowRegModal(false)} className="text-slate-400 hover:text-slate-600 font-bold text-2xl">&times;</button>
             </div>
             <form onSubmit={handleRegister} className="p-8 space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Full Name</label>
-                  <input required type="text" value={newPatient.name} onChange={e => setNewPatient({...newPatient, name: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none transition-all" />
+                  <input required type="text" value={newPatient.name} onChange={e => setNewPatient({...newPatient, name: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none transition-all" placeholder="John Smith" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Age</label>
-                  <input required type="number" value={newPatient.age} onChange={e => setNewPatient({...newPatient, age: parseInt(e.target.value)})} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none transition-all" />
+                  <input required type="number" value={newPatient.age || ''} onChange={e => setNewPatient({...newPatient, age: parseInt(e.target.value) || 0})} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none transition-all" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Gender</label>
@@ -305,10 +332,102 @@ const PatientManagement: React.FC = () => {
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Diagnosis / Complaint</label>
-                  <textarea value={newPatient.diagnosis} onChange={e => setNewPatient({...newPatient, diagnosis: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none transition-all h-24" />
+                  <textarea value={newPatient.diagnosis} onChange={e => setNewPatient({...newPatient, diagnosis: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none transition-all h-24 resize-none" placeholder="Primary complaint..." />
                 </div>
               </div>
               <button type="submit" className="w-full bg-sky-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-sky-100 hover:bg-sky-700 transition-all">Complete Registration</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EHR Entry Modal */}
+      {showEHRModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-slate-800">Add EHR Entry</h3>
+              <button onClick={() => setShowEHRModal(false)} className="text-slate-400 hover:text-slate-600 font-bold text-2xl">&times;</button>
+            </div>
+            <form onSubmit={handleSubmitEHR} className="p-8 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Condition / Diagnosis</label>
+                  <input name="condition" required type="text" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none" placeholder="e.g. Hypertension" />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Treatment Provided</label>
+                  <input name="treatment" required type="text" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none" placeholder="e.g. Lifestyle modification, Medication started" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Date</label>
+                  <input name="date" type="date" defaultValue={new Date().toISOString().split('T')[0]} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none" />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Additional Notes</label>
+                  <textarea name="notes" className="w-full h-24 px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none h-24 resize-none" placeholder="Clinical observations..." />
+                </div>
+              </div>
+              <button type="submit" className="w-full bg-slate-800 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-black transition-all">Save EHR Entry</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Prescription Modal */}
+      {showPrescriptionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-6 bg-amber-50 border-b border-amber-100 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-amber-800">New Medication Order</h3>
+              <button onClick={() => setShowPrescriptionModal(false)} className="text-amber-400 hover:text-amber-600 font-bold text-2xl">&times;</button>
+            </div>
+            <form onSubmit={handleSubmitPrescription} className="p-8 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Prescribing Doctor</label>
+                  <input name="doctorName" defaultValue="Dr. Sarah Wilson" required type="text" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Order Date</label>
+                  <input name="date" type="date" defaultValue={new Date().toISOString().split('T')[0]} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500 outline-none" />
+                </div>
+                <div className="col-span-2 border-t border-slate-100 pt-4 mt-2">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Medication Details</p>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Medicine Name</label>
+                      <input name="medName" required type="text" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500 outline-none" placeholder="e.g. Paracetamol 500mg" />
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Dosage</label>
+                        <input name="dosage" required type="text" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-amber-500 outline-none" placeholder="1 tab" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Frequency</label>
+                        <select name="frequency" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+                          <option>Once daily (QD)</option>
+                          <option>Twice daily (BID)</option>
+                          <option>Thrice daily (TID)</option>
+                          <option>Four times daily (QID)</option>
+                          <option>Every 4 hours</option>
+                          <option>As needed (PRN)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Duration</label>
+                        <input name="duration" required type="text" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-amber-500 outline-none" placeholder="5 days" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Special Notes</label>
+                  <textarea name="notes" className="w-full h-20 px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500 outline-none resize-none" placeholder="Take after food..." />
+                </div>
+              </div>
+              <button type="submit" className="w-full bg-amber-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-amber-700 transition-all">Authorize Prescription</button>
             </form>
           </div>
         </div>
