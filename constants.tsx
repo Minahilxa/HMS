@@ -35,7 +35,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'dashboard', 'lab-mgmt'
   ],
   [UserRole.RADIOLOGIST]: [
-    'dashboard', 'radio-mgmt', 'patients', 'comm-mgmt'
+    'dashboard', 'radio-mgmt'
   ],
   [UserRole.PHARMACIST]: [
     'dashboard', 'pharmacy-mgmt', 'patients', 'comm-mgmt'
