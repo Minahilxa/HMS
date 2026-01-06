@@ -354,7 +354,7 @@ export interface Appointment {
   date: string;
   type: string;
   source: AppointmentSource;
-  status: 'Scheduled' | 'Completed' | 'Cancelled' | 'Checked-in';
+  status: 'Scheduled' | 'Completed' | 'Cancelled' | 'Checked-in' | 'Pending Approval';
 }
 
 export interface TimeSlot {

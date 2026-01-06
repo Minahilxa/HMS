@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../services/apiService';
-import { Appointment, AppointmentSource, TimeSlot, Doctor } from '../types';
+import { Appointment, AppointmentSource, TimeSlot, Doctor, UserRole } from '../types';
 import { Icons } from '../constants';
 
 const AppointmentManagement: React.FC = () => {
@@ -12,6 +12,12 @@ const AppointmentManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'online' | 'walk-in' | 'slots'>('online');
   const [showModal, setShowModal] = useState(false);
   const [showSlotModal, setShowSlotModal] = useState(false);
+
+  // Role Detection
+  const userString = localStorage.getItem('his_user');
+  const currentUser = userString ? JSON.parse(userString) : null;
+  const isPatient = currentUser?.role === UserRole.PATIENT;
+  const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
 
   useEffect(() => {
     loadData();
@@ -43,22 +49,30 @@ const AppointmentManagement: React.FC = () => {
     const doctorId = formData.get('doctorId') as string;
     const doc = doctors.find(d => d.id === doctorId);
 
+    // Patients' appointments require approval
+    const initialStatus: Appointment['status'] = isPatient ? 'Pending Approval' : 'Scheduled';
+
     const newApt = await apiService.createAppointment({
-      patientName: formData.get('patientName') as string,
+      patientName: isPatient ? currentUser.name : (formData.get('patientName') as string),
       doctorId: doctorId,
       doctorName: doc?.name || 'Dr. Wilson',
       time: formData.get('time') as string,
       date: formData.get('date') as string,
       type: formData.get('type') as string,
-      source: activeTab === 'online' ? AppointmentSource.ONLINE : AppointmentSource.WALK_IN
+      source: isPatient ? AppointmentSource.ONLINE : (activeTab === 'online' ? AppointmentSource.ONLINE : AppointmentSource.WALK_IN),
+      status: initialStatus
     });
 
     setAppointments(prev => [...prev, newApt]);
     setShowModal(false);
+    if (isPatient) {
+        alert("Your appointment has been submitted and is currently pending approval by the hospital administration.");
+    }
   };
 
   const handleCreateSlot = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isPatient) return;
     const formData = new FormData(e.currentTarget);
     
     await apiService.createSlot({
@@ -73,9 +87,12 @@ const AppointmentManagement: React.FC = () => {
     setShowSlotModal(false);
   };
 
-  const filteredApts = appointments.filter(a => 
-    activeTab === 'online' ? a.source === AppointmentSource.ONLINE : a.source === AppointmentSource.WALK_IN
-  );
+  const filteredApts = appointments.filter(a => {
+    // If patient, only show their own appointments (simulation via name for demo, or all if preferred)
+    // In a real system, filter by patientId.
+    const matchesSource = activeTab === 'online' ? a.source === AppointmentSource.ONLINE : a.source === AppointmentSource.WALK_IN;
+    return matchesSource;
+  });
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-sky-600"></div></div>;
 
@@ -91,14 +108,16 @@ const AppointmentManagement: React.FC = () => {
           className="bg-sky-600 text-white px-5 py-2.5 rounded-xl font-semibold shadow-lg shadow-sky-100 hover:bg-sky-700 transition-all flex items-center"
         >
           <Icons.Calendar className="w-5 h-5 mr-2" />
-          New Appointment
+          {isPatient ? 'Request Appointment' : 'New Appointment'}
         </button>
       </div>
 
       <div className="flex p-1 bg-slate-100 rounded-2xl w-fit">
         <button onClick={() => setActiveTab('online')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'online' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Online Bookings</button>
         <button onClick={() => setActiveTab('walk-in')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'walk-in' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Walk-in Traffic</button>
-        <button onClick={() => setActiveTab('slots')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'slots' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Slot Management</button>
+        {!isPatient && (
+            <button onClick={() => setActiveTab('slots')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'slots' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Slot Management</button>
+        )}
       </div>
 
       {activeTab !== 'slots' ? (
@@ -130,15 +149,19 @@ const AppointmentManagement: React.FC = () => {
                       apt.status === 'Scheduled' ? 'bg-amber-100 text-amber-700' :
                       apt.status === 'Completed' ? 'bg-green-100 text-green-700' :
                       apt.status === 'Checked-in' ? 'bg-sky-100 text-sky-700' :
+                      apt.status === 'Pending Approval' ? 'bg-purple-100 text-purple-700' :
                       'bg-red-100 text-red-700'
                     }`}>{apt.status}</span>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex justify-center gap-1">
-                      {apt.status === 'Scheduled' && (
+                      {apt.status === 'Pending Approval' && isAdmin && (
+                          <button onClick={() => handleStatusUpdate(apt.id, 'Scheduled')} className="bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-purple-100">Approve</button>
+                      )}
+                      {apt.status === 'Scheduled' && !isPatient && (
                         <button onClick={() => handleStatusUpdate(apt.id, 'Checked-in')} className="bg-sky-50 text-sky-600 px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-sky-100">Check-in</button>
                       )}
-                      {apt.status === 'Checked-in' && (
+                      {apt.status === 'Checked-in' && !isPatient && (
                         <button onClick={() => handleStatusUpdate(apt.id, 'Completed')} className="bg-green-50 text-green-600 px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-green-100">Complete</button>
                       )}
                       {apt.status !== 'Cancelled' && apt.status !== 'Completed' && (
@@ -189,10 +212,12 @@ const AppointmentManagement: React.FC = () => {
                 <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 font-bold text-2xl">&times;</button>
              </div>
              <form onSubmit={handleCreateAppointment} className="p-8 space-y-6">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Patient Name</label>
-                  <input name="patientName" required className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none" placeholder="John Smith" />
-                </div>
+                {!isPatient && (
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Patient Name</label>
+                        <input name="patientName" required className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none" placeholder="John Smith" />
+                    </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Select Doctor</label>
@@ -220,14 +245,16 @@ const AppointmentManagement: React.FC = () => {
                     <input name="time" type="time" required className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none" />
                   </div>
                 </div>
-                <button type="submit" className="w-full bg-sky-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-sky-100 hover:bg-sky-700 transition-all">Confirm Booking</button>
+                <button type="submit" className="w-full bg-sky-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-sky-100 hover:bg-sky-700 transition-all uppercase tracking-widest text-xs">
+                    {isPatient ? 'Request Clinical Slot' : 'Confirm Booking'}
+                </button>
              </form>
           </div>
         </div>
       )}
 
       {/* Slot Modal */}
-      {showSlotModal && (
+      {showSlotModal && !isPatient && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
              <div className="p-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
