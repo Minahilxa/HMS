@@ -28,6 +28,7 @@ const DB_KEYS = {
   PHARMACY_SUPP: 'healsync_db_pharmacy_supp',
   INSURANCE_PANELS: 'healsync_db_insurance_panels',
   INSURANCE_CLAIMS: 'healsync_db_insurance_claims',
+  PATIENT_COVERAGE: 'healsync_db_patient_coverage',
   CMS_PAGES: 'healsync_db_cms_pages',
   ANNOUNCEMENTS: 'healsync_db_announcements',
   SETTINGS: 'healsync_db_settings',
@@ -49,14 +50,20 @@ class ApiService {
         { id: 'u2', name: 'Dr. Sarah Wilson', email: 'sarah@healsync.com', role: UserRole.DOCTOR, username: 'doctor', password: 'password123' }
       ]));
 
-      localStorage.setItem(DB_KEYS.LAB_SAMPLES, JSON.stringify([
-        { id: 'SMP-101', patientId: 'P1001', patientName: 'John Doe', testId: 'srv-2', testName: 'Complete Blood Count', collectionDate: '2024-05-20', status: 'Pending' },
-        { id: 'SMP-102', patientId: 'P1001', patientName: 'John Doe', testId: 'srv-1', testName: 'Glucose Fasting', collectionDate: '2024-05-21', status: 'Completed', result: '95 mg/dL' }
+      // Seed Panels
+      localStorage.setItem(DB_KEYS.INSURANCE_PANELS, JSON.stringify([
+        { id: 'PNL-1', name: 'HealthFirst Insurance', code: 'HF01', contactPerson: 'Jane Smith', email: 'jane@healthfirst.com', phone: '555-0202', settlementPeriod: 30, status: 'Active' },
+        { id: 'PNL-2', name: 'Global Care Net', code: 'GCN', contactPerson: 'Mike Ross', email: 'mike@gcn.com', phone: '555-0303', settlementPeriod: 45, status: 'Active' }
       ]));
 
-      localStorage.setItem(DB_KEYS.DOCTORS, JSON.stringify([
-        { id: 'd1', name: 'Dr. Sarah Wilson', specialization: 'Cardiology', department: 'Cardiology', status: 'On Duty', room: '302', experience: '12 Years', displayOnWeb: true, publicBio: 'Expert in cardiology.' },
-        { id: 'd2', name: 'Dr. James Miller', specialization: 'Neurology', department: 'Neurology', status: 'On Duty', room: '105', experience: '8 Years', displayOnWeb: true, publicBio: 'Specialist in neurology.' }
+      // Seed Claims
+      localStorage.setItem(DB_KEYS.INSURANCE_CLAIMS, JSON.stringify([
+        { id: 'CLM-101', patientId: 'P1001', patientName: 'John Doe', panelId: 'PNL-1', panelName: 'HealthFirst Insurance', invoiceId: 'INV-101', claimAmount: 165, status: 'Pending', submissionDate: '2024-05-18' }
+      ]));
+
+      // Seed Coverage
+      localStorage.setItem(DB_KEYS.PATIENT_COVERAGE, JSON.stringify([
+        { id: 'COV-1', patientId: 'P1001', panelId: 'PNL-1', policyNumber: 'HF-998822', totalLimit: 5000, consumedLimit: 1200, expiryDate: '2025-12-31', status: 'Verified' }
       ]));
 
       localStorage.setItem(DB_KEYS.PATIENTS, JSON.stringify([
@@ -64,7 +71,7 @@ class ApiService {
       ]));
 
       localStorage.setItem(DB_KEYS.INVOICES, JSON.stringify([
-        { id: 'INV-101', patientId: 'P1001', patientName: 'John Doe', date: '2024-05-18', category: BillingCategory.OPD, amount: 150, tax: 15, discount: 0, total: 165, status: 'Paid', paymentMethod: 'Cash' }
+        { id: 'INV-101', patientId: 'P1001', patientName: 'John Doe', date: '2024-05-18', category: BillingCategory.OPD, amount: 150, tax: 15, discount: 0, total: 165, status: 'Paid', paymentMethod: 'Insurance' }
       ]));
 
       localStorage.setItem(DB_KEYS.SETTINGS, JSON.stringify({
@@ -109,19 +116,70 @@ class ApiService {
   async getLabTests(): Promise<LabTest[]> { return this.getDB(DB_KEYS.LAB_TESTS); }
   async getLabSamples(): Promise<LabSample[]> { return this.getDB(DB_KEYS.LAB_SAMPLES); }
   async getRadiologyOrders(): Promise<RadiologyOrder[]> { return this.getDB(DB_KEYS.RADIO_ORDERS); }
+  // Fix: Maintaining the database-linked implementation of getLeaveRequests.
   async getLeaveRequests(): Promise<LeaveRequest[]> { return this.getDB(DB_KEYS.LEAVES); }
   async getSlots(): Promise<TimeSlot[]> { return this.getDB(DB_KEYS.SLOTS); }
   async getDoctorPerformance(): Promise<DoctorPerformance[]> { return this.getDB(DB_KEYS.PERFORMANCE); }
   async getAccessHistory(): Promise<AccessHistory[]> { return this.getDB(DB_KEYS.ACCESS_HISTORY); }
-  async getPharmacyInventory(): Promise<PharmacyItem[]> { return this.getDB(DB_KEYS.PHARMACY_INV); }
-  async getPharmacySales(): Promise<PharmacySale[]> { return this.getDB(DB_KEYS.PHARMACY_SALES); }
-  async getPharmacySuppliers(): Promise<PharmacySupplier[]> { return this.getDB(DB_KEYS.PHARMACY_SUPP); }
   
+  // --- INSURANCE & PANELS CRUD ---
+  async getInsurancePanels(): Promise<InsurancePanel[]> { return this.getDB(DB_KEYS.INSURANCE_PANELS); }
+  
+  async createInsurancePanel(data: Partial<InsurancePanel>): Promise<InsurancePanel> {
+    const panels = this.getDB<InsurancePanel>(DB_KEYS.INSURANCE_PANELS);
+    const newPanel = { ...data, id: 'PNL-' + Date.now(), status: data.status || 'Active' } as InsurancePanel;
+    this.saveDB(DB_KEYS.INSURANCE_PANELS, [...panels, newPanel]);
+    return newPanel;
+  }
+
+  async updateInsurancePanel(id: string, updates: Partial<InsurancePanel>): Promise<InsurancePanel> {
+    const panels = this.getDB<InsurancePanel>(DB_KEYS.INSURANCE_PANELS);
+    const idx = panels.findIndex(p => p.id === id);
+    if (idx > -1) {
+      panels[idx] = { ...panels[idx], ...updates };
+      this.saveDB(DB_KEYS.INSURANCE_PANELS, panels);
+      return panels[idx];
+    }
+    throw new Error('Panel not found');
+  }
+
+  async deleteInsurancePanel(id: string): Promise<boolean> {
+    const panels = this.getDB<InsurancePanel>(DB_KEYS.INSURANCE_PANELS);
+    const filtered = panels.filter(p => p.id !== id);
+    this.saveDB(DB_KEYS.INSURANCE_PANELS, filtered);
+    return true;
+  }
+
+  async getInsuranceClaims(): Promise<InsuranceClaim[]> { return this.getDB(DB_KEYS.INSURANCE_CLAIMS); }
+  
+  async updateClaimStatus(id: string, updates: Partial<InsuranceClaim>): Promise<boolean> {
+    const claims = this.getDB<InsuranceClaim>(DB_KEYS.INSURANCE_CLAIMS);
+    const idx = claims.findIndex(c => c.id === id);
+    if (idx > -1) {
+      claims[idx] = { ...claims[idx], ...updates };
+      this.saveDB(DB_KEYS.INSURANCE_CLAIMS, claims);
+      return true;
+    }
+    return false;
+  }
+
+  async getPatientCoverage(patientId: string): Promise<PatientCoverage[]> {
+    const coverage = this.getDB<PatientCoverage>(DB_KEYS.PATIENT_COVERAGE);
+    return coverage.filter(c => c.patientId === patientId);
+  }
+
+  async createPatientCoverage(data: Partial<PatientCoverage>): Promise<PatientCoverage> {
+    const coverage = this.getDB<PatientCoverage>(DB_KEYS.PATIENT_COVERAGE);
+    const newCov = { ...data, id: 'COV-' + Date.now(), status: 'Verified' } as PatientCoverage;
+    this.saveDB(DB_KEYS.PATIENT_COVERAGE, [...coverage, newCov]);
+    return newCov;
+  }
+
   // --- BILLING CRUD ---
   async createInvoice(data: Partial<Invoice>): Promise<Invoice> {
     const invs = this.getDB<Invoice>(DB_KEYS.INVOICES);
     const amount = data.amount || 0;
-    const tax = amount * 0.1; // 10% standard tax
+    const tax = amount * 0.1; 
     const discount = data.discount || 0;
     const total = amount + tax - discount;
 
@@ -150,7 +208,6 @@ class ApiService {
     return false;
   }
 
-  // --- OTHER METHODS ---
   async getHospitalSettings(): Promise<HospitalSettings> { 
     return JSON.parse(localStorage.getItem(DB_KEYS.SETTINGS) || '{}');
   }
@@ -189,9 +246,7 @@ class ApiService {
     ];
   }
 
-  // STUBS
-  async getInsurancePanels(): Promise<InsurancePanel[]> { return []; }
-  async getInsuranceClaims(): Promise<InsuranceClaim[]> { return []; }
+  // STUBS & OTHER METHODS
   async getCMSPages(): Promise<CMSPage[]> { return []; }
   async getInternalAnnouncements(): Promise<InternalAnnouncement[]> { return []; }
   async getPatientGrowthStats(): Promise<PatientGrowthEntry[]> { return []; }
@@ -207,7 +262,6 @@ class ApiService {
   async getBackupLogs(): Promise<BackupLog[]> { return []; }
   async getSecuritySettings(): Promise<SecuritySetting[]> { return []; }
   async updateUserRole(id: string, r: any) { return true; }
-  async updateClaimStatus(id: string, d: any) { return true; }
   async updateCMSPage(id: string, d: any) { return true; }
   async runManualBackup() { return { status: 'Success' }; }
   async toggleSecuritySetting(id: string) { return true; }
@@ -216,14 +270,12 @@ class ApiService {
   async sendSMS(d: any) { return true; }
   async createRadiologyOrder(d: any) { return true; }
   async updateRadiologyStatus(id: string, s: string, n?: string) { return true; }
-  async getPatientCoverage(id: string): Promise<PatientCoverage[]> { return []; }
   async updateCMSBlog(id: string, d: any) { return true; }
   async updateCMSSlider(id: string, d: any) { return true; }
   async updateDoctorCMS(id: string, d: any) { return true; }
   async deleteCustomReport(id: string) { return true; }
   async updateDoctorStatus(id: string, s: string) { return true; }
   async createAppointment(d: any) { return { id: 'a1' } as any; }
-  // Fix: Removed duplicate getSlots implementation from stubs section
   async createSlot(d: any) { return {}; }
   async updateAppointmentStatus(id: string, s: string) { return true; }
   async updatePatient(id: string, d: any) { return true; }
@@ -248,6 +300,10 @@ class ApiService {
   async updateDoctor(id: string, d: any) { return true; }
   async updateLeaveStatus(id: string, s: string) { return true; }
   async updateHospitalSettings(d: any) { return true; }
+  async getPharmacyInventory(): Promise<PharmacyItem[]> { return []; }
+  async getPharmacySales(): Promise<PharmacySale[]> { return []; }
+  async getPharmacySuppliers(): Promise<PharmacySupplier[]> { return []; }
+  // Fix: Removed duplicate stub getLeaveRequests implementation here (previously line 305).
 }
 
 export const apiService = new ApiService();
