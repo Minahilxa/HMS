@@ -1,3 +1,4 @@
+
 import express from 'express';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
@@ -27,9 +28,22 @@ const User = mongoose.model('User', UserSchema);
 
 const PatientSchema = new mongoose.Schema({
   name: String, age: Number, gender: String, status: String, admissionDate: String, diagnosis: String,
-  medicalHistory: Array, prescriptions: Array
+  medicalHistory: Array, prescriptions: Array, email: String, phone: String
 });
 const Patient = mongoose.model('Patient', PatientSchema);
+
+const EmailSchema = new mongoose.Schema({
+  senderEmail: String,
+  recipientEmail: String,
+  patientName: String,
+  subject: String,
+  content: String,
+  status: String,
+  timestamp: { type: String, default: () => new Date().toLocaleString() },
+  direction: String,
+  type: String
+});
+const Email = mongoose.model('Email', EmailSchema);
 
 // --- MONGODB CONNECTION ---
 let isDbConnected = false;
@@ -51,12 +65,27 @@ const seed = async () => {
     const userCount = await User.countDocuments();
     if (userCount === 0) {
       const usersToSeed = [
-        { username: 'admin', password: 'password123', name: 'System Admin', role: 'Admin', email: 'admin@healsync.com' },
+        { username: 'admin', password: 'password123', name: 'System Admin', role: 'Super Admin', email: 'abbasminahil1@gmail.com' },
         { username: 'doctor', password: 'password123', name: 'Dr. Sarah Wilson', role: 'Doctor', email: 'sarah@healsync.com' },
         { username: 'nurse', password: 'password123', name: 'Nurse Joy', role: 'Nurse', email: 'joy@healsync.com' }
       ];
       await User.insertMany(usersToSeed);
       console.log('👤 Seeded users');
+    }
+    
+    const emailCount = await Email.countDocuments();
+    if (emailCount === 0) {
+      await Email.create({
+        senderEmail: 'patient_doe@example.com',
+        recipientEmail: 'abbasminahil1@gmail.com',
+        patientName: 'John Doe',
+        subject: 'Appointment Inquiry',
+        content: 'Hi Admin, I wanted to confirm my appointment for tomorrow.',
+        status: 'Received',
+        direction: 'Incoming',
+        type: 'General'
+      });
+      console.log('📧 Seeded initial emails');
     }
   } catch (err) {
     console.warn('Seed error:', err.message);
@@ -96,12 +125,10 @@ const authenticate = (req, res, next) => {
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
   
-  // LOG START FOR PERFORMANCE MONITORING
   console.time(`login-${username}`);
 
-  // 1. ABSOLUTE BYPASS (Immediate response for testing)
   const bypassUsers = {
-    'admin': { id: 'bypass-admin', name: 'System Admin', role: 'Admin', email: 'admin@healsync.com' },
+    'admin': { id: 'bypass-admin', name: 'System Admin', role: 'Super Admin', email: 'abbasminahil1@gmail.com' },
     'doctor': { id: 'bypass-doctor', name: 'Dr. Sarah Wilson', role: 'Doctor', email: 'sarah@healsync.com' },
     'nurse': { id: 'bypass-nurse', name: 'Nurse Joy', role: 'Nurse', email: 'joy@healsync.com' }
   };
@@ -113,7 +140,6 @@ app.post('/api/auth/login', async (req, res) => {
     return res.json({ user, token });
   }
 
-  // 2. DB CHECK (Only if bypass fails)
   try {
     if (!isDbConnected) {
       console.timeEnd(`login-${username}`);
@@ -133,6 +159,41 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (err) {
     console.timeEnd(`login-${username}`);
     res.status(500).json({ message: 'Login service error.' });
+  }
+});
+
+// Email Routes
+app.get('/api/emails', authenticate, async (req, res) => {
+  try {
+    if (isDbConnected) {
+      const emails = await Email.find({ 
+        $or: [{ senderEmail: req.user.email }, { recipientEmail: req.user.email }] 
+      }).sort({ timestamp: -1 });
+      res.json(emails);
+    } else {
+      res.json([]);
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch emails' });
+  }
+});
+
+app.post('/api/emails/send', authenticate, async (req, res) => {
+  try {
+    const emailData = {
+      ...req.body,
+      senderEmail: req.user.email,
+      direction: 'Outgoing',
+      status: 'Sent'
+    };
+    if (isDbConnected) {
+      const newEmail = await Email.create(emailData);
+      res.json(newEmail);
+    } else {
+      res.json({ ...emailData, id: 'temp-' + Date.now() });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to send email' });
   }
 });
 

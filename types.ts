@@ -107,12 +107,15 @@ export interface SMSLog {
 
 export interface EmailLog {
   id: string;
-  patientName: string;
-  email: string;
+  patientName?: string;
+  senderEmail: string;
+  recipientEmail: string;
   subject: string;
-  status: 'Sent' | 'Opened' | 'Bounced';
+  content: string;
+  status: 'Sent' | 'Opened' | 'Bounced' | 'Received';
   timestamp: string;
-  type: 'Lab Result' | 'Prescription' | 'Newsletter';
+  direction: 'Incoming' | 'Outgoing';
+  type: 'Lab Result' | 'Prescription' | 'Newsletter' | 'General';
 }
 
 export interface CMSPage {

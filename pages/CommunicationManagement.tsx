@@ -11,10 +11,12 @@ const CommunicationManagement: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'announcements' | 'sms' | 'email'>('announcements');
+  const [emailView, setEmailView] = useState<'inbox' | 'sent'>('inbox');
   
   // Modals
   const [showAnnModal, setShowAnnModal] = useState(false);
   const [showSMSModal, setShowSMSModal] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -76,6 +78,25 @@ const CommunicationManagement: React.FC = () => {
     loadData();
   };
 
+  const handleSendEmail = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const recipientEmail = formData.get('recipientEmail') as string;
+    const p = patients.find(pat => pat.email === recipientEmail);
+
+    await apiService.sendEmail({
+      senderEmail: 'abbasminahil1@gmail.com',
+      recipientEmail: recipientEmail,
+      patientName: p?.name || 'Guest',
+      subject: formData.get('subject') as string,
+      content: formData.get('content') as string,
+      type: 'General',
+      direction: 'Outgoing'
+    });
+    setShowEmailModal(false);
+    loadData();
+  };
+
   if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-sky-600"></div></div>;
 
   return (
@@ -89,7 +110,7 @@ const CommunicationManagement: React.FC = () => {
           <p className="text-sm text-slate-500">Manage internal staff broadcasts and monitor patient outreach via SMS/Email.</p>
         </div>
         <div className="flex p-1 bg-slate-100 rounded-2xl overflow-x-auto whitespace-nowrap">
-          <button onClick={() => setActiveTab('announcements')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'announcements' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500'}`}>Announcements</button>
+          <button onClick={() => setActiveTab('announcements')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'announcements' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-50'}`}>Announcements</button>
           <button onClick={() => setActiveTab('sms')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'sms' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500'}`}>SMS Gateway</button>
           <button onClick={() => setActiveTab('email')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'email' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500'}`}>Email Alerts</button>
         </div>
@@ -184,38 +205,54 @@ const CommunicationManagement: React.FC = () => {
       {activeTab === 'email' && (
         <div className="space-y-6">
            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-bold text-slate-700">Email Dispatcher Logs</h2>
-              <button className="bg-slate-100 text-slate-600 px-5 py-2.5 rounded-xl font-bold text-xs hover:bg-slate-200 transition-all">
-                Email Templates
+              <div className="flex gap-4">
+                 <h2 className="text-lg font-bold text-slate-700">Email Gateway</h2>
+                 <div className="flex p-0.5 bg-slate-100 rounded-xl">
+                    <button onClick={() => setEmailView('inbox')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${emailView === 'inbox' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-400'}`}>Inbox</button>
+                    <button onClick={() => setEmailView('sent')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${emailView === 'sent' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-400'}`}>Sent</button>
+                 </div>
+              </div>
+              <button onClick={() => setShowEmailModal(true)} className="bg-sky-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs hover:bg-sky-700 transition-all flex items-center">
+                <Icons.Mail className="w-4 h-4 mr-2" />
+                Compose Email
               </button>
            </div>
+           
            <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
              <table className="w-full text-left">
                 <thead className="bg-slate-50 border-b border-slate-200">
                    <tr>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Recipient</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Subject Line</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">{emailView === 'inbox' ? 'Sender' : 'Recipient'}</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Subject & Preview</th>
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-center">Outcome</th>
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Date/Time</th>
                    </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                   {emailLogs.map(log => (
-                      <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
+                   {emailLogs
+                    .filter(log => (emailView === 'inbox' ? log.direction === 'Incoming' : log.direction === 'Outgoing'))
+                    .map(log => (
+                      <tr key={log.id} className="hover:bg-slate-50/50 transition-colors group cursor-pointer">
                          <td className="px-6 py-4">
-                            <p className="font-bold text-slate-800">{log.patientName}</p>
-                            <p className="text-[10px] text-slate-400">{log.email}</p>
+                            <p className="font-bold text-slate-800">{log.patientName || (emailView === 'inbox' ? log.senderEmail.split('@')[0] : log.recipientEmail.split('@')[0])}</p>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase">{emailView === 'inbox' ? log.senderEmail : log.recipientEmail}</p>
                          </td>
-                         <td className="px-6 py-4 text-xs text-slate-600 font-medium">{log.subject}</td>
+                         <td className="px-6 py-4 max-w-sm">
+                            <p className="text-xs font-bold text-slate-800 line-clamp-1">{log.subject}</p>
+                            <p className="text-[10px] text-slate-500 line-clamp-1 italic">{log.content}</p>
+                         </td>
                          <td className="px-6 py-4 text-center">
                             <span className={`px-2 py-1 rounded-full text-[8px] font-black uppercase ${
-                              log.status === 'Opened' ? 'bg-green-50 text-green-600' : 
+                              log.status === 'Opened' || log.status === 'Received' ? 'bg-green-50 text-green-600' : 
                               log.status === 'Sent' ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'
                             }`}>{log.status}</span>
                          </td>
                          <td className="px-6 py-4 text-xs text-slate-400 font-medium">{log.timestamp}</td>
                       </tr>
                    ))}
+                   {emailLogs.filter(log => (emailView === 'inbox' ? log.direction === 'Incoming' : log.direction === 'Outgoing')).length === 0 && (
+                      <tr><td colSpan={4} className="p-20 text-center text-slate-400 italic">No messages found in this folder.</td></tr>
+                   )}
                 </tbody>
              </table>
            </div>
@@ -287,6 +324,44 @@ const CommunicationManagement: React.FC = () => {
                   <Icons.Phone className="w-5 h-5 mr-2" />
                   Initiate SMS Dispatch
                 </button>
+             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Compose Email Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+             <div className="p-6 bg-slate-900 border-b border-slate-800 flex justify-between items-center">
+                <div className="text-white">
+                   <h3 className="text-xl font-bold">Compose Medical Report / Alert</h3>
+                   <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mt-1">From: abbasminahil1@gmail.com</p>
+                </div>
+                <button onClick={() => setShowEmailModal(false)} className="text-slate-500 hover:text-white font-bold text-2xl">&times;</button>
+             </div>
+             <form onSubmit={handleSendEmail} className="p-8 space-y-4">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Recipient Email Address</label>
+                  <input name="recipientEmail" type="email" required className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none" placeholder="patient@example.com" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Email Subject Line</label>
+                  <input name="subject" required className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none" placeholder="e.g. Critical Lab Results Available" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Message Body</label>
+                  <textarea name="content" required className="w-full h-40 px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none resize-none" placeholder="Type clinical content here..." />
+                </div>
+                <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                   <div className="flex gap-2">
+                      <button type="button" className="p-2 bg-slate-50 text-slate-400 rounded-lg hover:text-sky-600 transition-colors"><Icons.Prescription className="w-5 h-5" /></button>
+                      <button type="button" className="p-2 bg-slate-50 text-slate-400 rounded-lg hover:text-sky-600 transition-colors"><Icons.Radiology className="w-5 h-5" /></button>
+                   </div>
+                   <button type="submit" className="bg-sky-600 text-white px-8 py-3 rounded-2xl font-bold shadow-lg hover:bg-sky-700 transition-all uppercase text-xs tracking-widest">
+                     Dispatch Email
+                   </button>
+                </div>
              </form>
           </div>
         </div>
