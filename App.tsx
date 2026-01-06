@@ -17,6 +17,7 @@ import CMSManagement from './pages/CMSManagement';
 import ReportsManagement from './pages/ReportsManagement';
 import CommunicationManagement from './pages/CommunicationManagement';
 import SettingsSecurity from './pages/SettingsSecurity';
+import EmergencyManagement from './pages/EmergencyManagement';
 import { apiService } from './services/apiService';
 import { 
   Doctor, 
@@ -129,7 +130,7 @@ const App: React.FC = () => {
       case 'reports-mgmt': return <ReportsManagement />;
       case 'comm-mgmt': return <CommunicationManagement />;
       case 'settings-mgmt': return <SettingsSecurity />;
-      case 'emergency': return <ListSection title="Emergency Cases" data={emergencyCases} type="emergency" />;
+      case 'emergency': return <EmergencyManagement />;
       case 'users': return <UserManagement />;
       default: return <Dashboard stats={stats} setActiveTab={setActiveTab} revenue={revenue} />;
     }

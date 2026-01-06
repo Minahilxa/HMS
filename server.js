@@ -45,6 +45,15 @@ const EmailSchema = new mongoose.Schema({
 });
 const Email = mongoose.model('Email', EmailSchema);
 
+// Invitation Schema
+const InvitationSchema = new mongoose.Schema({
+  email: { type: String, required: true },
+  role: { type: String, required: true },
+  status: { type: String, default: 'Sent' },
+  timestamp: { type: String, default: () => new Date().toLocaleString() }
+});
+const Invitation = mongoose.model('Invitation', InvitationSchema);
+
 // --- MONGODB CONNECTION ---
 let isDbConnected = false;
 mongoose.connect(MONGODB_URI, { 
@@ -159,6 +168,24 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (err) {
     console.timeEnd(`login-${username}`);
     res.status(500).json({ message: 'Login service error.' });
+  }
+});
+
+// User Invitation Route
+app.post('/api/users/invite', authenticate, async (req, res) => {
+  const { email, role } = req.body;
+  if (!email || !role) {
+    return res.status(400).json({ message: 'Email and Role are required.' });
+  }
+
+  try {
+    if (isDbConnected) {
+      await Invitation.create({ email, role });
+      // In a real app, send an actual email here
+    }
+    res.json({ message: 'Invitation sent successfully.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to send invitation.' });
   }
 });
 

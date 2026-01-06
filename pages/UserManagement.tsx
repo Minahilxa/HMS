@@ -8,6 +8,10 @@ const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  
+  // Invitation Modal State
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviting, setInviting] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -27,6 +31,26 @@ const UserManagement: React.FC = () => {
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
     }
     setUpdating(null);
+  };
+
+  const handleInviteSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setInviting(true);
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get('email') as string;
+    const role = formData.get('role') as UserRole;
+
+    try {
+      const success = await apiService.sendUserInvitation(email, role);
+      if (success) {
+        alert(`Invitation sent successfully to ${email}`);
+        setShowInviteModal(false);
+      }
+    } catch (err) {
+      alert("Failed to send invitation. Please try again.");
+    } finally {
+      setInviting(false);
+    }
   };
 
   const getRoleBadgeColor = (role: UserRole) => {
@@ -57,7 +81,10 @@ const UserManagement: React.FC = () => {
           <h1 className="text-2xl font-bold text-slate-800">User & Role Management</h1>
           <p className="text-sm text-slate-500">Assign system permissions and manage staff access levels.</p>
         </div>
-        <button className="bg-sky-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-sky-700 transition-all shadow-md shadow-sky-100 flex items-center">
+        <button 
+          onClick={() => setShowInviteModal(true)}
+          className="bg-sky-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-sky-700 transition-all shadow-md shadow-sky-100 flex items-center"
+        >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
           Invite User
         </button>
@@ -155,6 +182,61 @@ const UserManagement: React.FC = () => {
            </button>
         </div>
       </div>
+
+      {/* Invitation Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-slate-800">Invite New Staff</h3>
+              <button onClick={() => setShowInviteModal(false)} className="text-slate-400 hover:text-slate-600 font-bold text-2xl">&times;</button>
+            </div>
+            <form onSubmit={handleInviteSubmit} className="p-8 space-y-6">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Staff Email Address</label>
+                <input 
+                  name="email" 
+                  type="email" 
+                  required 
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none transition-all" 
+                  placeholder="staff@hospital.com" 
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Assigned Role</label>
+                <select 
+                  name="role" 
+                  required 
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none appearance-none bg-white transition-all"
+                >
+                  {Object.values(UserRole).filter(r => r !== UserRole.PATIENT).map(role => (
+                    <option key={role} value={role}>{role}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="bg-sky-50 p-4 rounded-2xl border border-sky-100">
+                <p className="text-[10px] text-sky-700 font-bold leading-relaxed">
+                  An invitation link will be sent to the email provided. The user will be prompted to set their credentials and complete their profile upon clicking the link.
+                </p>
+              </div>
+              <button 
+                type="submit" 
+                disabled={inviting}
+                className="w-full bg-sky-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-sky-700 transition-all uppercase tracking-widest text-xs flex items-center justify-center"
+              >
+                {inviting ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <Icons.Mail className="w-4 h-4 mr-2" />
+                    Send Digital Invitation
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

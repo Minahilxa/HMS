@@ -45,7 +45,8 @@ const DB_KEYS = {
   LEAVES: 'healsync_db_leaves',
   PERFORMANCE: 'healsync_db_performance',
   SLOTS: 'healsync_db_slots',
-  ACCESS_HISTORY: 'healsync_db_access_logs'
+  ACCESS_HISTORY: 'healsync_db_access_logs',
+  INVITATIONS: 'healsync_db_invitations'
 };
 
 class ApiService {
@@ -145,9 +146,35 @@ class ApiService {
   }
 
   // --- ENTITY METHODS ---
+  async getUsers(): Promise<User[]> { return this.getDB(DB_KEYS.USERS); }
+  async updateUserRole(id: string, r: any) { return this.update(DB_KEYS.USERS, id, { role: r }); }
+  
+  async sendUserInvitation(email: string, role: UserRole): Promise<boolean> {
+    const invitations = this.getDB<any>(DB_KEYS.INVITATIONS);
+    const newInvitation = {
+      id: `INV-${Date.now()}`,
+      email,
+      role,
+      status: 'Sent',
+      timestamp: new Date().toLocaleString()
+    };
+    this.saveDB(DB_KEYS.INVITATIONS, [...invitations, newInvitation]);
+    
+    // Also log it as an email if applicable
+    await this.sendEmail({
+      senderEmail: 'abbasminahil1@gmail.com',
+      recipientEmail: email,
+      subject: 'Hospital System Invitation',
+      content: `You have been invited to join the HealSync HIS as a ${role}. Please use this link to set up your account.`,
+      direction: 'Outgoing',
+      type: 'General'
+    });
+
+    return true;
+  }
+
   async getPatients(): Promise<Patient[]> { return this.getDB(DB_KEYS.PATIENTS); }
   async getDoctors(): Promise<Doctor[]> { return this.getDB(DB_KEYS.DOCTORS); }
-  async getUsers(): Promise<User[]> { return this.getDB(DB_KEYS.USERS); }
   async getAppointments(): Promise<Appointment[]> { return this.getDB(DB_KEYS.APPOINTMENTS); }
   async getDepartments(): Promise<HospitalDepartment[]> { return this.getDB(DB_KEYS.DEPARTMENTS); }
   async getServices(): Promise<HospitalService[]> { return this.getDB(DB_KEYS.SERVICES); }
@@ -230,8 +257,6 @@ class ApiService {
     };
   }
 
-  // --- ANALYTICS ---
-  // Fix: Added missing getRevenueSummary method for ReportsManagement.
   async getRevenueSummary(): Promise<RevenueData[]> {
     return [
       { date: '2024-05-18', amount: 5100, category: 'Pharmacy' },
@@ -273,7 +298,6 @@ class ApiService {
   async updateInsurancePanel(id: string, d: any) { return this.update(DB_KEYS.INSURANCE_PANELS, id, d); }
   async deleteInsurancePanel(id: string) { return this.remove(DB_KEYS.INSURANCE_PANELS, id); }
   async updateClaimStatus(id: string, d: any) { return this.update(DB_KEYS.INSURANCE_CLAIMS, id, d); }
-  // Fix: Added generic type PatientCoverage to avoid 'unknown[]' type error.
   async getPatientCoverage(id: string): Promise<PatientCoverage[]> { return this.getDB<PatientCoverage>(DB_KEYS.PATIENT_COVERAGE).filter((c: any) => c.patientId === id); }
   async createPatientCoverage(d: any) { return this.create(DB_KEYS.PATIENT_COVERAGE, d, 'COV'); }
 
@@ -291,7 +315,6 @@ class ApiService {
   async deletePharmacySupplier(id: string) { return this.remove(DB_KEYS.PHARMACY_SUPP, id); }
 
   async getLabTests(): Promise<LabTest[]> { return this.getDB(DB_KEYS.LAB_TESTS); }
-  // Fix: Removed duplicate getRadiologyOrders from the bottom area as it was already defined earlier.
   async createRadiologyOrder(d: any) { return this.create(DB_KEYS.RADIO_ORDERS, d, 'RAD'); }
   async updateRadiologyStatus(id: string, s: string, n?: string) { return this.update(DB_KEYS.RADIO_ORDERS, id, { status: s as any, radiologistNotes: n }); }
   async updateSampleStatus(id: string, s: string, r?: string) { return this.update(DB_KEYS.LAB_SAMPLES, id, { status: s as any, result: r }); }
@@ -329,7 +352,6 @@ class ApiService {
   async updateAppointmentStatus(id: string, s: string) { return this.update(DB_KEYS.APPOINTMENTS, id, { status: s as any }); }
   async createSlot(d: any) { return this.create(DB_KEYS.SLOTS, d, 'SLT'); }
   async updateLeaveStatus(id: string, s: string) { return this.update(DB_KEYS.LEAVES, id, { status: s as any }); }
-  async updateUserRole(id: string, r: any) { return this.update(DB_KEYS.USERS, id, { role: r }); }
   async updateInvoice(id: string, d: any) { return this.update(DB_KEYS.INVOICES, id, d); }
   async createInvoice(d: any) { 
     const items = this.getDB<Invoice>(DB_KEYS.INVOICES);

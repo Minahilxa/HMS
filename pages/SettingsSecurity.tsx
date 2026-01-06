@@ -379,10 +379,7 @@ const SettingsSecurity: React.FC = () => {
                          <option>Critical</option><option>Severe</option><option>Stable</option>
                       </select>
                     </div>
-                    <select name="assignedDoctor" defaultValue={editingItem?.assignedDoctor} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none">
-                       <option value="">Select On-Call Dr.</option>
-                       {doctors.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-                    </select>
+                    <input name="assignedDoctor" defaultValue={editingItem?.assignedDoctor} placeholder="Assigned On-Call Physician" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none" />
                   </>
                 )}
                 {showModal === 'pay' && (

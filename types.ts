@@ -438,6 +438,7 @@ export interface EmergencyCase {
   priority: 'Critical' | 'Stable' | 'Severe';
   timestamp: string;
   assignedDoctor: string;
+  status: 'Active' | 'Pending' | 'Resolved';
 }
 
 export interface DashboardStats {
