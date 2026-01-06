@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../services/apiService';
-import { EmergencyCase, Doctor } from '../types';
+import { EmergencyCase, Doctor, UserRole } from '../types';
 import { Icons } from '../constants';
 
 const EmergencyManagement: React.FC = () => {
@@ -10,6 +10,11 @@ const EmergencyManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingCase, setEditingCase] = useState<EmergencyCase | null>(null);
+
+  // Role Detection
+  const userString = localStorage.getItem('his_user');
+  const currentUser = userString ? JSON.parse(userString) : null;
+  const isDoctor = currentUser?.role === UserRole.DOCTOR;
 
   useEffect(() => {
     loadData();
@@ -33,6 +38,8 @@ const EmergencyManagement: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isDoctor) return; // Guard for doctor role
+
     const formData = new FormData(e.currentTarget);
     const data: Partial<EmergencyCase> = {
       patientName: formData.get('patientName') as string,
@@ -54,6 +61,7 @@ const EmergencyManagement: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
+    if (isDoctor) return; // Guard for doctor role
     if (confirm("Permanently delete this emergency record?")) {
       await apiService.deleteEmergencyCase(id);
       loadData();
@@ -75,15 +83,19 @@ const EmergencyManagement: React.FC = () => {
             <Icons.Emergency className="w-8 h-8 mr-3 text-red-600" />
             Trauma & Emergency Care
           </h1>
-          <p className="text-sm text-slate-500">Real-time monitoring and coordination of critical hospital admissions.</p>
+          <p className="text-sm text-slate-500">
+            {isDoctor ? 'Monitor critical admissions and update patient care status.' : 'Real-time monitoring and coordination of critical hospital admissions.'}
+          </p>
         </div>
-        <button 
-          onClick={() => { setEditingCase(null); setShowModal(true); }}
-          className="bg-red-600 text-white px-6 py-3 rounded-2xl font-bold text-xs shadow-lg shadow-red-100 hover:bg-red-700 transition-all flex items-center"
-        >
-          <Icons.Bolt className="w-4 h-4 mr-2" />
-          Add emergency case
-        </button>
+        {!isDoctor && (
+          <button 
+            onClick={() => { setEditingCase(null); setShowModal(true); }}
+            className="bg-red-600 text-white px-6 py-3 rounded-2xl font-bold text-xs shadow-lg shadow-red-100 hover:bg-red-700 transition-all flex items-center"
+          >
+            <Icons.Bolt className="w-4 h-4 mr-2" />
+            Add emergency case
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
@@ -95,7 +107,7 @@ const EmergencyManagement: React.FC = () => {
               <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Priority</th>
               <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Clinician</th>
               <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Status</th>
-              <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-center">Actions</th>
+              {!isDoctor && <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-center">Actions</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
@@ -134,22 +146,24 @@ const EmergencyManagement: React.FC = () => {
                     </select>
                   </div>
                 </td>
-                <td className="px-6 py-4">
-                  <div className="flex justify-center gap-2">
-                    <button onClick={() => { setEditingCase(ec); setShowModal(true); }} className="p-2 text-slate-400 hover:text-sky-600 transition-colors"><Icons.Cog6Tooth className="w-4 h-4" /></button>
-                    <button onClick={() => handleDelete(ec.id)} className="p-2 text-slate-400 hover:text-red-600 transition-colors"><Icons.Logout className="w-4 h-4" /></button>
-                  </div>
-                </td>
+                {!isDoctor && (
+                  <td className="px-6 py-4">
+                    <div className="flex justify-center gap-2">
+                      <button onClick={() => { setEditingCase(ec); setShowModal(true); }} className="p-2 text-slate-400 hover:text-sky-600 transition-colors"><Icons.Cog6Tooth className="w-4 h-4" /></button>
+                      <button onClick={() => handleDelete(ec.id)} className="p-2 text-slate-400 hover:text-red-600 transition-colors"><Icons.Logout className="w-4 h-4" /></button>
+                    </div>
+                  </td>
+                )}
               </tr>
             ))}
             {cases.length === 0 && (
-              <tr><td colSpan={6} className="py-20 text-center text-slate-400 italic font-medium">No active trauma cases currently registered.</td></tr>
+              <tr><td colSpan={isDoctor ? 5 : 6} className="py-20 text-center text-slate-400 italic font-medium">No active trauma cases currently registered.</td></tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {showModal && (
+      {showModal && !isDoctor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 bg-red-50 border-b border-red-100 flex justify-between items-center">
