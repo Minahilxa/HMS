@@ -42,28 +42,23 @@ class ApiService {
     this.seedDatabase();
   }
 
-  // Seeding initial pharmacy data and other missing resources
   private seedDatabase() {
     if (!localStorage.getItem(DB_KEYS.USERS)) {
-      // Seed Initial Users
       localStorage.setItem(DB_KEYS.USERS, JSON.stringify([
         { id: 'u1', name: 'System Admin', email: 'admin@healsync.com', role: UserRole.SUPER_ADMIN, username: 'admin', password: 'password123' },
         { id: 'u2', name: 'Dr. Sarah Wilson', email: 'sarah@healsync.com', role: UserRole.DOCTOR, username: 'doctor', password: 'password123' }
       ]));
 
-      // Seed Initial Lab Samples
       localStorage.setItem(DB_KEYS.LAB_SAMPLES, JSON.stringify([
         { id: 'SMP-101', patientId: 'P1001', patientName: 'John Doe', testId: 'srv-2', testName: 'Complete Blood Count', collectionDate: '2024-05-20', status: 'Pending' },
         { id: 'SMP-102', patientId: 'P1001', patientName: 'John Doe', testId: 'srv-1', testName: 'Glucose Fasting', collectionDate: '2024-05-21', status: 'Completed', result: '95 mg/dL' }
       ]));
 
-      // Seed Initial Access Logs
       localStorage.setItem(DB_KEYS.ACCESS_HISTORY, JSON.stringify([
         { id: 'LOG-1', patientName: 'John Doe', action: 'Login', timestamp: '2024-05-20 09:00 AM', device: 'Chrome / Windows' },
         { id: 'LOG-2', patientName: 'John Doe', action: 'Report Viewed', timestamp: '2024-05-21 11:30 AM', device: 'Safari / iPhone' }
       ]));
 
-      // Seed Initial Doctors
       localStorage.setItem(DB_KEYS.DOCTORS, JSON.stringify([
         { id: 'd1', name: 'Dr. Sarah Wilson', specialization: 'Cardiology', department: 'Cardiology', status: 'On Duty', room: '302', experience: '12 Years', displayOnWeb: true, publicBio: 'Expert in cardiology.' },
         { id: 'd2', name: 'Dr. James Miller', specialization: 'Neurology', department: 'Neurology', status: 'On Duty', room: '105', experience: '8 Years', displayOnWeb: true, publicBio: 'Specialist in neurology.' }
@@ -101,7 +96,6 @@ class ApiService {
         { id: 'srv-2', name: 'Blood Panel', description: 'Full CBC and metabolic panel.', cost: 120, category: 'Diagnostic', isAvailable: true }
       ]));
 
-      // Added pharmacy seed data
       localStorage.setItem(DB_KEYS.PHARMACY_INV, JSON.stringify([
         { id: 'MED-001', name: 'Paracetamol 500mg', category: 'Tablet', stock: 500, minStockLevel: 100, price: 5.50, expiryDate: '2025-12-01', supplierId: 'SUP-001' },
         { id: 'MED-002', name: 'Amoxicillin 250mg', category: 'Capsule', stock: 45, minStockLevel: 50, price: 12.00, expiryDate: '2024-08-15', supplierId: 'SUP-002' }
@@ -110,6 +104,10 @@ class ApiService {
       localStorage.setItem(DB_KEYS.PHARMACY_SUPP, JSON.stringify([
         { id: 'SUP-001', name: 'Global Pharma Solutions', contactPerson: 'Mark Evans', phone: '555-0202', email: 'sales@globalpharma.com', address: '456 Industrial Way' },
         { id: 'SUP-002', name: 'HealthCare Medics', contactPerson: 'Alice Wong', phone: '555-0303', email: 'alice@healthcaremedics.com', address: '789 Biotech Park' }
+      ]));
+
+      localStorage.setItem(DB_KEYS.PHARMACY_SALES, JSON.stringify([
+        { id: 'SL-1001', patientName: 'John Doe', items: [{ itemId: 'MED-001', itemName: 'Paracetamol 500mg', quantity: 2, price: 5.50 }], totalAmount: 11.00, date: '2024-05-22', paymentStatus: 'Paid' }
       ]));
 
       localStorage.setItem(DB_KEYS.SETTINGS, JSON.stringify({
@@ -159,9 +157,87 @@ class ApiService {
   async getDoctorPerformance(): Promise<DoctorPerformance[]> { return this.getDB(DB_KEYS.PERFORMANCE); }
   async getAccessHistory(): Promise<AccessHistory[]> { return this.getDB(DB_KEYS.ACCESS_HISTORY); }
   
-  // Fix for error in PharmacyManagement.tsx: Added missing getPharmacyInventory method
   async getPharmacyInventory(): Promise<PharmacyItem[]> { return this.getDB(DB_KEYS.PHARMACY_INV); }
+  async getPharmacySales(): Promise<PharmacySale[]> { return this.getDB(DB_KEYS.PHARMACY_SALES); }
+  async getPharmacySuppliers(): Promise<PharmacySupplier[]> { return this.getDB(DB_KEYS.PHARMACY_SUPP); }
   
+  // --- PHARMACY CRUD ---
+  async createPharmacyItem(data: Partial<PharmacyItem>): Promise<PharmacyItem> {
+    const inv = this.getDB<PharmacyItem>(DB_KEYS.PHARMACY_INV);
+    const newItem = { ...data, id: 'MED-' + Date.now() } as PharmacyItem;
+    this.saveDB(DB_KEYS.PHARMACY_INV, [...inv, newItem]);
+    return newItem;
+  }
+
+  async updatePharmacyItem(id: string, updates: Partial<PharmacyItem>): Promise<PharmacyItem> {
+    const inv = this.getDB<PharmacyItem>(DB_KEYS.PHARMACY_INV);
+    const idx = inv.findIndex(i => i.id === id);
+    if (idx > -1) {
+      inv[idx] = { ...inv[idx], ...updates };
+      this.saveDB(DB_KEYS.PHARMACY_INV, inv);
+      return inv[idx];
+    }
+    throw new Error('Item not found');
+  }
+
+  async deletePharmacyItem(id: string): Promise<boolean> {
+    const inv = this.getDB<PharmacyItem>(DB_KEYS.PHARMACY_INV);
+    const filtered = inv.filter(i => i.id !== id);
+    this.saveDB(DB_KEYS.PHARMACY_INV, filtered);
+    return true;
+  }
+
+  async createPharmacySale(data: Partial<PharmacySale>): Promise<PharmacySale> {
+    const sales = this.getDB<PharmacySale>(DB_KEYS.PHARMACY_SALES);
+    const newSale = { ...data, id: 'SL-' + Date.now(), date: new Date().toISOString().split('T')[0] } as PharmacySale;
+    this.saveDB(DB_KEYS.PHARMACY_SALES, [...sales, newSale]);
+    return newSale;
+  }
+
+  async updatePharmacySale(id: string, updates: Partial<PharmacySale>): Promise<PharmacySale> {
+    const sales = this.getDB<PharmacySale>(DB_KEYS.PHARMACY_SALES);
+    const idx = sales.findIndex(s => s.id === id);
+    if (idx > -1) {
+      sales[idx] = { ...sales[idx], ...updates };
+      this.saveDB(DB_KEYS.PHARMACY_SALES, sales);
+      return sales[idx];
+    }
+    throw new Error('Sale not found');
+  }
+
+  async deletePharmacySale(id: string): Promise<boolean> {
+    const sales = this.getDB<PharmacySale>(DB_KEYS.PHARMACY_SALES);
+    const filtered = sales.filter(s => s.id !== id);
+    this.saveDB(DB_KEYS.PHARMACY_SALES, filtered);
+    return true;
+  }
+
+  async createPharmacySupplier(data: Partial<PharmacySupplier>): Promise<PharmacySupplier> {
+    const sup = this.getDB<PharmacySupplier>(DB_KEYS.PHARMACY_SUPP);
+    const newSup = { ...data, id: 'SUP-' + Date.now() } as PharmacySupplier;
+    this.saveDB(DB_KEYS.PHARMACY_SUPP, [...sup, newSup]);
+    return newSup;
+  }
+
+  async updatePharmacySupplier(id: string, updates: Partial<PharmacySupplier>): Promise<PharmacySupplier> {
+    const sup = this.getDB<PharmacySupplier>(DB_KEYS.PHARMACY_SUPP);
+    const idx = sup.findIndex(s => s.id === id);
+    if (idx > -1) {
+      sup[idx] = { ...sup[idx], ...updates };
+      this.saveDB(DB_KEYS.PHARMACY_SUPP, sup);
+      return sup[idx];
+    }
+    throw new Error('Supplier not found');
+  }
+
+  async deletePharmacySupplier(id: string): Promise<boolean> {
+    const sup = this.getDB<PharmacySupplier>(DB_KEYS.PHARMACY_SUPP);
+    const filtered = sup.filter(s => s.id !== id);
+    this.saveDB(DB_KEYS.PHARMACY_SUPP, filtered);
+    return true;
+  }
+
+  // --- OTHER CORE METHODS ---
   async getHospitalSettings(): Promise<HospitalSettings> { 
     return JSON.parse(localStorage.getItem(DB_KEYS.SETTINGS) || '{}');
   }
@@ -173,14 +249,11 @@ class ApiService {
       samples[idx].status = status;
       if (result !== undefined) samples[idx].result = result;
       this.saveDB(DB_KEYS.LAB_SAMPLES, samples);
-      
-      // Log this action
       this.createAccessLog({
         patientName: samples[idx].patientName,
         action: status === 'Completed' ? 'Report Downloaded' : 'Report Viewed',
         device: 'Laboratory System / Automatic'
       });
-
       return true;
     }
     return false;
@@ -193,11 +266,10 @@ class ApiService {
       id: 'LOG-' + Date.now(),
       timestamp: new Date().toLocaleString()
     } as AccessHistory;
-    this.saveDB(DB_KEYS.ACCESS_HISTORY, [newLog, ...logs].slice(0, 100)); // Keep last 100 logs
+    this.saveDB(DB_KEYS.ACCESS_HISTORY, [newLog, ...logs].slice(0, 100));
     return true;
   }
 
-  // --- CRUD METHODS ---
   async createDepartment(data: Partial<HospitalDepartment>): Promise<HospitalDepartment> {
     const depts = this.getDB<HospitalDepartment>(DB_KEYS.DEPARTMENTS);
     const newDept = { ...data, id: 'dept-' + Date.now(), staffCount: 0, status: 'Active' } as HospitalDepartment;
@@ -390,7 +462,6 @@ class ApiService {
     ];
   }
 
-  // --- STUBS ---
   async getInsurancePanels(): Promise<InsurancePanel[]> { return this.getDB(DB_KEYS.INSURANCE_PANELS); }
   async getInsuranceClaims(): Promise<InsuranceClaim[]> { return this.getDB(DB_KEYS.INSURANCE_CLAIMS); }
   async getCMSPages(): Promise<CMSPage[]> { return this.getDB(DB_KEYS.CMS_PAGES); }
@@ -417,8 +488,6 @@ class ApiService {
   async sendSMS(d: any) { return true; }
   async createRadiologyOrder(d: any) { return true; }
   async updateRadiologyStatus(id: string, s: string, n?: string) { return true; }
-  async getPharmacySales(): Promise<PharmacySale[]> { return this.getDB(DB_KEYS.PHARMACY_SALES); }
-  async getPharmacySuppliers(): Promise<PharmacySupplier[]> { return this.getDB(DB_KEYS.PHARMACY_SUPP); }
   async getPatientCoverage(id: string): Promise<PatientCoverage[]> { return []; }
   async updateCMSBlog(id: string, d: any) { return true; }
   async updateCMSSlider(id: string, d: any) { return true; }
