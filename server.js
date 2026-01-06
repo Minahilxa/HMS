@@ -74,27 +74,19 @@ const seed = async () => {
     const userCount = await User.countDocuments();
     if (userCount === 0) {
       const usersToSeed = [
-        { username: 'admin', password: 'password123', name: 'System Admin', role: 'Super Admin', email: 'abbasminahil1@gmail.com' },
+        { username: 'admin', password: 'password123', name: 'Master Admin', role: 'Super Admin', email: 'abbasminahil1@gmail.com' },
+        { username: 'staff_admin', password: 'password123', name: 'Office Admin', role: 'Admin', email: 'admin@healsync.com' },
         { username: 'doctor', password: 'password123', name: 'Dr. Sarah Wilson', role: 'Doctor', email: 'sarah@healsync.com' },
-        { username: 'nurse', password: 'password123', name: 'Nurse Joy', role: 'Nurse', email: 'joy@healsync.com' }
+        { username: 'nurse', password: 'password123', name: 'Nurse Joy', role: 'Nurse', email: 'joy@healsync.com' },
+        { username: 'lab_tech', password: 'password123', name: 'Mark Tech', role: 'Lab Technician', email: 'mark@healsync.com' },
+        { username: 'radiologist', password: 'password123', name: 'Dr. Ray X', role: 'Radiologist', email: 'ray@healsync.com' },
+        { username: 'pharmacist', password: 'password123', name: 'Pharma Phil', role: 'Pharmacist', email: 'phil@healsync.com' },
+        { username: 'receptionist', password: 'password123', name: 'Alice Front', role: 'Receptionist', email: 'alice@healsync.com' },
+        { username: 'accountant', password: 'password123', name: 'Money Mike', role: 'Accountant', email: 'mike@healsync.com' },
+        { username: 'patient', password: 'password123', name: 'John Doe', role: 'Patient', email: 'john@gmail.com' }
       ];
       await User.insertMany(usersToSeed);
-      console.log('👤 Seeded users');
-    }
-    
-    const emailCount = await Email.countDocuments();
-    if (emailCount === 0) {
-      await Email.create({
-        senderEmail: 'patient_doe@example.com',
-        recipientEmail: 'abbasminahil1@gmail.com',
-        patientName: 'John Doe',
-        subject: 'Appointment Inquiry',
-        content: 'Hi Admin, I wanted to confirm my appointment for tomorrow.',
-        status: 'Received',
-        direction: 'Incoming',
-        type: 'General'
-      });
-      console.log('📧 Seeded initial emails');
+      console.log('👤 Seeded all role-based accounts');
     }
   } catch (err) {
     console.warn('Seed error:', err.message);
@@ -134,24 +126,27 @@ const authenticate = (req, res, next) => {
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
   
-  console.time(`login-${username}`);
-
   const bypassUsers = {
-    'admin': { id: 'bypass-admin', name: 'System Admin', role: 'Super Admin', email: 'abbasminahil1@gmail.com' },
-    'doctor': { id: 'bypass-doctor', name: 'Dr. Sarah Wilson', role: 'Doctor', email: 'sarah@healsync.com' },
-    'nurse': { id: 'bypass-nurse', name: 'Nurse Joy', role: 'Nurse', email: 'joy@healsync.com' }
+    'admin': { id: 'b1', name: 'Master Admin', role: 'Super Admin', email: 'abbasminahil1@gmail.com' },
+    'staff_admin': { id: 'b2', name: 'Office Admin', role: 'Admin', email: 'admin@healsync.com' },
+    'doctor': { id: 'b3', name: 'Dr. Sarah Wilson', role: 'Doctor', email: 'sarah@healsync.com' },
+    'nurse': { id: 'b4', name: 'Nurse Joy', role: 'Nurse', email: 'joy@healsync.com' },
+    'lab_tech': { id: 'b5', name: 'Mark Tech', role: 'Lab Technician', email: 'mark@healsync.com' },
+    'radiologist': { id: 'b6', name: 'Dr. Ray X', role: 'Radiologist', email: 'ray@healsync.com' },
+    'pharmacist': { id: 'b7', name: 'Pharma Phil', role: 'Pharmacist', email: 'phil@healsync.com' },
+    'receptionist': { id: 'b8', name: 'Alice Front', role: 'Receptionist', email: 'alice@healsync.com' },
+    'accountant': { id: 'b9', name: 'Money Mike', role: 'Accountant', email: 'mike@healsync.com' },
+    'patient': { id: 'b10', name: 'John Doe', role: 'Patient', email: 'john@gmail.com' }
   };
 
   if (bypassUsers[username] && password === 'password123') {
     const user = bypassUsers[username];
     const token = generateToken(user);
-    console.timeEnd(`login-${username}`);
     return res.json({ user, token });
   }
 
   try {
     if (!isDbConnected) {
-      console.timeEnd(`login-${username}`);
       return res.status(503).json({ message: 'Database offline. Use demo credentials.' });
     }
 
@@ -159,37 +154,26 @@ app.post('/api/auth/login', async (req, res) => {
     if (user) {
       const userRes = { ...user, id: user._id.toString() };
       delete userRes._id; delete userRes.password; delete userRes.__v;
-      console.timeEnd(`login-${username}`);
       res.json({ user: userRes, token: generateToken(userRes) });
     } else {
-      console.timeEnd(`login-${username}`);
       res.status(401).json({ message: 'Invalid Credentials.' });
     }
   } catch (err) {
-    console.timeEnd(`login-${username}`);
     res.status(500).json({ message: 'Login service error.' });
   }
 });
 
-// User Invitation Route
 app.post('/api/users/invite', authenticate, async (req, res) => {
   const { email, role } = req.body;
-  if (!email || !role) {
-    return res.status(400).json({ message: 'Email and Role are required.' });
-  }
-
+  if (!email || !role) return res.status(400).json({ message: 'Email and Role are required.' });
   try {
-    if (isDbConnected) {
-      await Invitation.create({ email, role });
-      // In a real app, send an actual email here
-    }
+    if (isDbConnected) await Invitation.create({ email, role });
     res.json({ message: 'Invitation sent successfully.' });
   } catch (err) {
     res.status(500).json({ message: 'Failed to send invitation.' });
   }
 });
 
-// Email Routes
 app.get('/api/emails', authenticate, async (req, res) => {
   try {
     if (isDbConnected) {
@@ -197,9 +181,7 @@ app.get('/api/emails', authenticate, async (req, res) => {
         $or: [{ senderEmail: req.user.email }, { recipientEmail: req.user.email }] 
       }).sort({ timestamp: -1 });
       res.json(emails);
-    } else {
-      res.json([]);
-    }
+    } else res.json([]);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch emails' });
   }
@@ -207,18 +189,11 @@ app.get('/api/emails', authenticate, async (req, res) => {
 
 app.post('/api/emails/send', authenticate, async (req, res) => {
   try {
-    const emailData = {
-      ...req.body,
-      senderEmail: req.user.email,
-      direction: 'Outgoing',
-      status: 'Sent'
-    };
+    const emailData = { ...req.body, senderEmail: req.user.email, direction: 'Outgoing', status: 'Sent' };
     if (isDbConnected) {
       const newEmail = await Email.create(emailData);
       res.json(newEmail);
-    } else {
-      res.json({ ...emailData, id: 'temp-' + Date.now() });
-    }
+    } else res.json({ ...emailData, id: 'temp-' + Date.now() });
   } catch (err) {
     res.status(500).json({ error: 'Failed to send email' });
   }
@@ -226,7 +201,7 @@ app.post('/api/emails/send', authenticate, async (req, res) => {
 
 app.get('/api/init-dashboard', authenticate, async (req, res) => {
   res.json({
-    stats: { dailyAppointments: 12, opdPatients: 45, ipdPatients: 12, emergencyCases: 0, totalRevenue: 12450, doctorsOnDuty: 14 },
+    stats: { dailyAppointments: 12, opdPatients: 45, ipdPatients: 12, emergencyCases: 2, totalRevenue: 12450, doctorsOnDuty: 8 },
     revenue: [
       { date: '2024-05-18', amount: 5100, category: 'Pharmacy' },
       { date: '2024-05-19', amount: 3200, category: 'OPD' },

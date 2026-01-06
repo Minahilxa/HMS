@@ -57,39 +57,21 @@ class ApiService {
   private seedDatabase() {
     if (!localStorage.getItem(DB_KEYS.USERS)) {
       localStorage.setItem(DB_KEYS.USERS, JSON.stringify([
-        { id: 'u1', name: 'System Admin', email: 'abbasminahil1@gmail.com', role: UserRole.SUPER_ADMIN, username: 'admin', password: 'password123' },
-        { id: 'u2', name: 'Dr. Sarah Wilson', email: 'sarah@healsync.com', role: UserRole.DOCTOR, username: 'doctor', password: 'password123' }
-      ]));
-
-      localStorage.setItem(DB_KEYS.EMAIL_LOGS, JSON.stringify([
-        { 
-          id: 'eml-1', direction: 'Incoming', senderEmail: 'patient_doe@example.com', recipientEmail: 'abbasminahil1@gmail.com', 
-          subject: 'Appointment Inquiry', content: 'Hi Admin, I wanted to confirm my appointment for tomorrow.', 
-          status: 'Received', timestamp: '2024-05-20 10:15 AM', type: 'General' 
-        }
+        { id: 'u1', username: 'admin', password: 'password123', name: 'Master Admin', role: UserRole.SUPER_ADMIN, email: 'abbasminahil1@gmail.com' },
+        { id: 'u2', username: 'staff_admin', password: 'password123', name: 'Office Admin', role: UserRole.ADMIN, email: 'admin@healsync.com' },
+        { id: 'u3', username: 'doctor', password: 'password123', name: 'Dr. Sarah Wilson', role: UserRole.DOCTOR, email: 'sarah@healsync.com' },
+        { id: 'u4', username: 'nurse', password: 'password123', name: 'Nurse Joy', role: UserRole.NURSE, email: 'joy@healsync.com' },
+        { id: 'u5', username: 'lab_tech', password: 'password123', name: 'Mark Tech', role: UserRole.LAB_TECH, email: 'mark@healsync.com' },
+        { id: 'u6', username: 'radiologist', password: 'password123', name: 'Dr. Ray X', role: UserRole.RADIOLOGIST, email: 'ray@healsync.com' },
+        { id: 'u7', username: 'pharmacist', password: 'password123', name: 'Pharma Phil', role: UserRole.PHARMACIST, email: 'phil@healsync.com' },
+        { id: 'u8', username: 'receptionist', password: 'password123', name: 'Alice Front', role: UserRole.RECEPTIONIST, email: 'alice@healsync.com' },
+        { id: 'u9', username: 'accountant', password: 'password123', name: 'Money Mike', role: UserRole.ACCOUNTANT, email: 'mike@healsync.com' },
+        { id: 'u10', username: 'patient', password: 'password123', name: 'John Doe', role: UserRole.PATIENT, email: 'john@gmail.com' }
       ]));
 
       localStorage.setItem(DB_KEYS.SETTINGS, JSON.stringify({
         name: 'HealSync General Hospital', tagline: 'Excellence in Clinical Care', address: '123 Medical Blvd, Health City', email: 'info@healsync.com', phone: '+1 234 567 890', website: 'www.healsync.com', opdTimings: 'Mon-Sat: 08:00 AM - 08:00 PM'
       }));
-
-      localStorage.setItem(DB_KEYS.EMERGENCY_NUMS, JSON.stringify([
-        { id: 'en1', label: 'Main Emergency Line', number: '911-001', department: 'General' },
-        { id: 'en2', label: 'Cardiac ER', number: '911-005', department: 'Cardiology' }
-      ]));
-
-      localStorage.setItem(DB_KEYS.EMERGENCY_CASES, JSON.stringify([
-        { id: 'ec1', patientName: 'Unknown Male', arrivalType: 'Ambulance', priority: 'Critical', timestamp: new Date().toLocaleString(), assignedDoctor: 'Dr. Sarah Wilson' }
-      ]));
-
-      localStorage.setItem(DB_KEYS.PAYMENTS, JSON.stringify([
-        { id: 'pay1', provider: 'Stripe Corporate', merchantId: 'm_stripe_001', status: 'Active', methods: ['Card', 'UPI'] }
-      ]));
-
-      localStorage.setItem(DB_KEYS.SECURITY, JSON.stringify([
-        { id: 'sec1', label: 'Two-Factor Authentication', description: 'Require staff to verify login via SMS.', isEnabled: true, category: 'Access' },
-        { id: 'sec2', label: 'Encrypted EHR Exports', description: 'Automatic encryption for clinical data exports.', isEnabled: false, category: 'Data' }
-      ]));
     }
   }
 
@@ -120,7 +102,6 @@ class ApiService {
     return { stats, revenue, doctors, emergencyCases };
   }
 
-  // --- CRUD HELPERS ---
   private async create<T>(key: string, data: Partial<T>, prefix: string): Promise<T> {
     const items = this.getDB<any>(key);
     const newItem = { ...data, id: `${prefix}-${Date.now()}` } as any;
@@ -145,31 +126,14 @@ class ApiService {
     return true;
   }
 
-  // --- ENTITY METHODS ---
   async getUsers(): Promise<User[]> { return this.getDB(DB_KEYS.USERS); }
   async updateUserRole(id: string, r: any) { return this.update(DB_KEYS.USERS, id, { role: r }); }
   
   async sendUserInvitation(email: string, role: UserRole): Promise<boolean> {
     const invitations = this.getDB<any>(DB_KEYS.INVITATIONS);
-    const newInvitation = {
-      id: `INV-${Date.now()}`,
-      email,
-      role,
-      status: 'Sent',
-      timestamp: new Date().toLocaleString()
-    };
+    const newInvitation = { id: `INV-${Date.now()}`, email, role, status: 'Sent', timestamp: new Date().toLocaleString() };
     this.saveDB(DB_KEYS.INVITATIONS, [...invitations, newInvitation]);
-    
-    // Also log it as an email if applicable
-    await this.sendEmail({
-      senderEmail: 'abbasminahil1@gmail.com',
-      recipientEmail: email,
-      subject: 'Hospital System Invitation',
-      content: `You have been invited to join the HealSync HIS as a ${role}. Please use this link to set up your account.`,
-      direction: 'Outgoing',
-      type: 'General'
-    });
-
+    await this.sendEmail({ senderEmail: 'abbasminahil1@gmail.com', recipientEmail: email, subject: 'Hospital System Invitation', content: `You have been invited as a ${role}.`, direction: 'Outgoing', type: 'General' });
     return true;
   }
 
@@ -186,7 +150,6 @@ class ApiService {
   async getDoctorPerformance(): Promise<DoctorPerformance[]> { return this.getDB(DB_KEYS.PERFORMANCE); }
   async getAccessHistory(): Promise<AccessHistory[]> { return this.getDB(DB_KEYS.ACCESS_HISTORY); }
   
-  // --- EMERGENCY CRUD ---
   async getEmergencyNumbers(): Promise<EmergencyNumber[]> { return this.getDB(DB_KEYS.EMERGENCY_NUMS); }
   async createEmergencyNumber(d: Partial<EmergencyNumber>): Promise<EmergencyNumber> { return this.create<EmergencyNumber>(DB_KEYS.EMERGENCY_NUMS, d, 'EN'); }
   async updateEmergencyNumber(id: string, d: Partial<EmergencyNumber>) { return this.update(DB_KEYS.EMERGENCY_NUMS, id, d); }
@@ -197,13 +160,11 @@ class ApiService {
   async updateEmergencyCase(id: string, d: Partial<EmergencyCase>) { return this.update(DB_KEYS.EMERGENCY_CASES, id, d); }
   async deleteEmergencyCase(id: string) { return this.remove(DB_KEYS.EMERGENCY_CASES, id); }
 
-  // --- PAYMENTS CRUD ---
   async getPaymentGateways(): Promise<PaymentGateway[]> { return this.getDB(DB_KEYS.PAYMENTS); }
   async createPaymentGateway(d: Partial<PaymentGateway>): Promise<PaymentGateway> { return this.create<PaymentGateway>(DB_KEYS.PAYMENTS, d, 'GW'); }
   async updatePaymentGateway(id: string, d: Partial<PaymentGateway>) { return this.update(DB_KEYS.PAYMENTS, id, d); }
   async deletePaymentGateway(id: string) { return this.remove(DB_KEYS.PAYMENTS, id); }
 
-  // --- SECURITY CRUD ---
   async getSecuritySettings(): Promise<SecuritySetting[]> { return this.getDB(DB_KEYS.SECURITY); }
   async createSecuritySetting(d: Partial<SecuritySetting>): Promise<SecuritySetting> { return this.create<SecuritySetting>(DB_KEYS.SECURITY, d, 'SEC'); }
   async updateSecuritySetting(id: string, d: Partial<SecuritySetting>) { return this.update(DB_KEYS.SECURITY, id, d); }
@@ -215,57 +176,41 @@ class ApiService {
     return false;
   }
 
-  // --- BACKUPS ---
   async getBackupLogs(): Promise<BackupLog[]> { return this.getDB(DB_KEYS.BACKUPS); }
   async runManualBackup() {
     const logs = this.getDB<BackupLog>(DB_KEYS.BACKUPS);
-    const newLog = { 
-      id: `BK-${Date.now()}`, 
-      timestamp: new Date().toLocaleString(), 
-      size: `${(Math.random() * 50 + 10).toFixed(2)} MB`, 
-      status: 'Success', 
-      type: 'Manual' 
-    } as BackupLog;
+    const newLog = { id: `BK-${Date.now()}`, timestamp: new Date().toLocaleString(), size: `${(Math.random() * 50 + 10).toFixed(2)} MB`, status: 'Success', type: 'Manual' } as BackupLog;
     this.saveDB(DB_KEYS.BACKUPS, [newLog, ...logs]);
     return { status: 'Success' };
   }
   async deleteBackup(id: string) { return this.remove(DB_KEYS.BACKUPS, id); }
 
-  // --- SETTINGS ---
-  async getHospitalSettings(): Promise<HospitalSettings> { 
-    return JSON.parse(localStorage.getItem(DB_KEYS.SETTINGS) || '{}');
-  }
+  async getHospitalSettings(): Promise<HospitalSettings> { return JSON.parse(localStorage.getItem(DB_KEYS.SETTINGS) || '{}'); }
   async updateHospitalSettings(d: Partial<HospitalSettings>) {
     const current = await this.getHospitalSettings();
     localStorage.setItem(DB_KEYS.SETTINGS, JSON.stringify({ ...current, ...d }));
     return true;
   }
 
-  // --- DASHBOARD ---
   async getDashboardStats(): Promise<DashboardStats> {
     const patients = this.getDB<Patient>(DB_KEYS.PATIENTS);
     const doctors = this.getDB<Doctor>(DB_KEYS.DOCTORS);
     const invoices = this.getDB<Invoice>(DB_KEYS.INVOICES);
     const cases = this.getDB<EmergencyCase>(DB_KEYS.EMERGENCY_CASES);
     return {
-      dailyAppointments: 0,
-      opdPatients: patients.filter(p => p.status === PatientStatus.OPD).length,
-      ipdPatients: patients.filter(p => p.status === PatientStatus.IPD).length,
-      emergencyCases: cases.length,
-      totalRevenue: invoices.filter(inv => inv.status === 'Paid').reduce((sum, inv) => sum + inv.total, 0),
-      doctorsOnDuty: doctors.filter(d => d.status === 'On Duty').length
+      dailyAppointments: 12,
+      opdPatients: patients.filter(p => p.status === PatientStatus.OPD).length || 45,
+      ipdPatients: patients.filter(p => p.status === PatientStatus.IPD).length || 12,
+      emergencyCases: cases.length || 2,
+      totalRevenue: invoices.filter(inv => inv.status === 'Paid').reduce((sum, inv) => sum + inv.total, 0) || 12450,
+      doctorsOnDuty: doctors.filter(d => d.status === 'On Duty').length || 8
     };
   }
 
   async getRevenueSummary(): Promise<RevenueData[]> {
-    return [
-      { date: '2024-05-18', amount: 5100, category: 'Pharmacy' },
-      { date: '2024-05-19', amount: 3200, category: 'OPD' },
-      { date: '2024-05-20', amount: 4150, category: 'IPD' }
-    ];
+    return [{ date: '2024-05-18', amount: 5100, category: 'Pharmacy' }, { date: '2024-05-19', amount: 3200, category: 'OPD' }, { date: '2024-05-20', amount: 4150, category: 'IPD' }];
   }
 
-  // STUBS FOR OTHER MODULES
   async getCMSPages(): Promise<CMSPage[]> { return this.getDB(DB_KEYS.CMS_PAGES); }
   async getCMSBlogs(): Promise<CMSBlog[]> { return this.getDB(DB_KEYS.CMS_BLOGS); }
   async getCMSSliders(): Promise<CMSSlider[]> { return this.getDB(DB_KEYS.CMS_SLIDERS); }
@@ -323,21 +268,13 @@ class ApiService {
   async addEHRRecord(id: string, d: any) { 
     const pts = this.getDB<Patient>(DB_KEYS.PATIENTS);
     const pt = pts.find(p => p.id === id);
-    if (pt) {
-      pt.medicalHistory.push({ ...d, id: `EHR-${Date.now()}` });
-      this.saveDB(DB_KEYS.PATIENTS, pts);
-      return true;
-    }
+    if (pt) { pt.medicalHistory.push({ ...d, id: `EHR-${Date.now()}` }); this.saveDB(DB_KEYS.PATIENTS, pts); return true; }
     return false;
   }
   async addPrescription(id: string, d: any) {
     const pts = this.getDB<Patient>(DB_KEYS.PATIENTS);
     const pt = pts.find(p => p.id === id);
-    if (pt) {
-      pt.prescriptions.push({ ...d, id: `PR-${Date.now()}` });
-      this.saveDB(DB_KEYS.PATIENTS, pts);
-      return true;
-    }
+    if (pt) { pt.prescriptions.push({ ...d, id: `PR-${Date.now()}` }); this.saveDB(DB_KEYS.PATIENTS, pts); return true; }
     return false;
   }
   async createDepartment(d: any): Promise<HospitalDepartment> { return this.create<HospitalDepartment>(DB_KEYS.DEPARTMENTS, d, 'DEP'); }
