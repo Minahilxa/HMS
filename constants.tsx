@@ -41,7 +41,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'dashboard', 'pharmacy-mgmt'
   ],
   [UserRole.RECEPTIONIST]: [
-    'dashboard', 'apt-mgmt', 'patients', 'doctors', 'insurance-mgmt', 'billing-mgmt', 'comm-mgmt'
+    'dashboard', 'apt-mgmt', 'patients', 'doctors', 'comm-mgmt'
   ],
   [UserRole.ACCOUNTANT]: [
     'dashboard', 'billing-mgmt', 'insurance-mgmt', 'reports-mgmt', 'revenue'

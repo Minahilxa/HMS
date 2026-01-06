@@ -17,6 +17,10 @@ const CommunicationManagement: React.FC = () => {
   const userString = localStorage.getItem('his_user');
   const currentUser = userString ? JSON.parse(userString) : null;
   const isDoctor = currentUser?.role === UserRole.DOCTOR;
+  const isReceptionist = currentUser?.role === UserRole.RECEPTIONIST;
+
+  // Generic read-only flag for these two roles
+  const isReadOnly = isDoctor || isReceptionist;
 
   // Modals
   const [showAnnModal, setShowAnnModal] = useState(false);
@@ -49,7 +53,7 @@ const CommunicationManagement: React.FC = () => {
 
   const handleCreateAnnouncement = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (isDoctor) return;
+    if (isReadOnly) return; // Guard for read-only roles
     const formData = new FormData(e.currentTarget);
     await apiService.createAnnouncement({
       title: formData.get('title') as string,
@@ -62,7 +66,7 @@ const CommunicationManagement: React.FC = () => {
   };
 
   const handleDeleteAnn = async (id: string) => {
-    if (isDoctor) return;
+    if (isReadOnly) return; // Guard for read-only roles
     if (confirm("Delete this announcement?")) {
       await apiService.deleteAnnouncement(id);
       loadData();
@@ -71,7 +75,7 @@ const CommunicationManagement: React.FC = () => {
 
   const handleSendSMS = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (isDoctor) return;
+    if (isReadOnly) return; // Guard
     const formData = new FormData(e.currentTarget);
     const pId = formData.get('patientId') as string;
     const p = patients.find(pat => pat.id === pId);
@@ -88,7 +92,7 @@ const CommunicationManagement: React.FC = () => {
 
   const handleSendEmail = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (isDoctor) return;
+    if (isReadOnly) return; // Guard
     const formData = new FormData(e.currentTarget);
     const recipientEmail = formData.get('recipientEmail') as string;
     const p = patients.find(pat => pat.email === recipientEmail);
@@ -117,7 +121,7 @@ const CommunicationManagement: React.FC = () => {
             Communication Hub
           </h1>
           <p className="text-sm text-slate-500">
-            {isDoctor ? 'View institutional broadcasts and patient communication logs.' : 'Manage internal staff broadcasts and monitor patient outreach via SMS/Email.'}
+            {isReadOnly ? 'View institutional broadcasts and patient communication logs.' : 'Manage internal staff broadcasts and monitor patient outreach via SMS/Email.'}
           </p>
         </div>
         <div className="flex p-1 bg-slate-100 rounded-2xl overflow-x-auto whitespace-nowrap">
@@ -131,7 +135,7 @@ const CommunicationManagement: React.FC = () => {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
              <h2 className="text-lg font-bold text-slate-700">Internal Broadcasts</h2>
-             {!isDoctor && (
+             {!isReadOnly && (
                <button onClick={() => setShowAnnModal(true)} className="bg-sky-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg hover:bg-sky-700 transition-all flex items-center">
                  Post New Announcement
                </button>
@@ -152,7 +156,7 @@ const CommunicationManagement: React.FC = () => {
                     </span>
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{ann.targetAudience}</span>
                   </div>
-                  {!isDoctor && (
+                  {!isReadOnly && (
                     <button onClick={() => handleDeleteAnn(ann.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeWidth={2}/></svg>
                     </button>
@@ -177,7 +181,7 @@ const CommunicationManagement: React.FC = () => {
         <div className="space-y-6">
            <div className="flex justify-between items-center">
               <h2 className="text-lg font-bold text-slate-700">SMS Outbox Activity</h2>
-              {!isDoctor && (
+              {!isReadOnly && (
                 <button onClick={() => setShowSMSModal(true)} className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold text-xs hover:bg-black transition-all">
                   Compose Ad-hoc SMS
                 </button>
@@ -229,7 +233,7 @@ const CommunicationManagement: React.FC = () => {
                     <button onClick={() => setEmailView('sent')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${emailView === 'sent' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-400'}`}>Sent</button>
                  </div>
               </div>
-              {!isDoctor && (
+              {!isReadOnly && (
                 <button onClick={() => setShowEmailModal(true)} className="bg-sky-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs hover:bg-sky-700 transition-all flex items-center">
                   <Icons.Mail className="w-4 h-4 mr-2" />
                   Compose Email
@@ -279,7 +283,7 @@ const CommunicationManagement: React.FC = () => {
       )}
 
       {/* Announcement Modal */}
-      {showAnnModal && (
+      {showAnnModal && !isReadOnly && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4">
              <div className="p-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
@@ -321,7 +325,7 @@ const CommunicationManagement: React.FC = () => {
       )}
 
       {/* SMS Modal */}
-      {showSMSModal && (
+      {showSMSModal && !isReadOnly && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4">
              <div className="p-6 bg-sky-50 border-b border-sky-100 flex justify-between items-center">
@@ -349,7 +353,7 @@ const CommunicationManagement: React.FC = () => {
       )}
 
       {/* Compose Email Modal */}
-      {showEmailModal && (
+      {showEmailModal && !isReadOnly && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
              <div className="p-6 bg-slate-900 border-b border-slate-800 flex justify-between items-center">
