@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../services/apiService';
-import { InternalAnnouncement, SMSLog, EmailLog, Patient } from '../types';
+import { InternalAnnouncement, SMSLog, EmailLog, Patient, UserRole } from '../types';
 import { Icons } from '../constants';
 
 const CommunicationManagement: React.FC = () => {
@@ -13,6 +13,11 @@ const CommunicationManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'announcements' | 'sms' | 'email'>('announcements');
   const [emailView, setEmailView] = useState<'inbox' | 'sent'>('inbox');
   
+  // Role Detection
+  const userString = localStorage.getItem('his_user');
+  const currentUser = userString ? JSON.parse(userString) : null;
+  const isDoctor = currentUser?.role === UserRole.DOCTOR;
+
   // Modals
   const [showAnnModal, setShowAnnModal] = useState(false);
   const [showSMSModal, setShowSMSModal] = useState(false);
@@ -44,6 +49,7 @@ const CommunicationManagement: React.FC = () => {
 
   const handleCreateAnnouncement = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isDoctor) return;
     const formData = new FormData(e.currentTarget);
     await apiService.createAnnouncement({
       title: formData.get('title') as string,
@@ -56,6 +62,7 @@ const CommunicationManagement: React.FC = () => {
   };
 
   const handleDeleteAnn = async (id: string) => {
+    if (isDoctor) return;
     if (confirm("Delete this announcement?")) {
       await apiService.deleteAnnouncement(id);
       loadData();
@@ -64,6 +71,7 @@ const CommunicationManagement: React.FC = () => {
 
   const handleSendSMS = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isDoctor) return;
     const formData = new FormData(e.currentTarget);
     const pId = formData.get('patientId') as string;
     const p = patients.find(pat => pat.id === pId);
@@ -80,6 +88,7 @@ const CommunicationManagement: React.FC = () => {
 
   const handleSendEmail = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isDoctor) return;
     const formData = new FormData(e.currentTarget);
     const recipientEmail = formData.get('recipientEmail') as string;
     const p = patients.find(pat => pat.email === recipientEmail);
@@ -105,9 +114,11 @@ const CommunicationManagement: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center">
             <Icons.Megaphone className="w-8 h-8 mr-3 text-sky-600" />
-            Communication System
+            Communication Hub
           </h1>
-          <p className="text-sm text-slate-500">Manage internal staff broadcasts and monitor patient outreach via SMS/Email.</p>
+          <p className="text-sm text-slate-500">
+            {isDoctor ? 'View institutional broadcasts and patient communication logs.' : 'Manage internal staff broadcasts and monitor patient outreach via SMS/Email.'}
+          </p>
         </div>
         <div className="flex p-1 bg-slate-100 rounded-2xl overflow-x-auto whitespace-nowrap">
           <button onClick={() => setActiveTab('announcements')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'announcements' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-50'}`}>Announcements</button>
@@ -120,9 +131,11 @@ const CommunicationManagement: React.FC = () => {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
              <h2 className="text-lg font-bold text-slate-700">Internal Broadcasts</h2>
-             <button onClick={() => setShowAnnModal(true)} className="bg-sky-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg hover:bg-sky-700 transition-all flex items-center">
-               Post New Announcement
-             </button>
+             {!isDoctor && (
+               <button onClick={() => setShowAnnModal(true)} className="bg-sky-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg hover:bg-sky-700 transition-all flex items-center">
+                 Post New Announcement
+               </button>
+             )}
           </div>
           
           <div className="grid grid-cols-1 gap-4">
@@ -139,9 +152,11 @@ const CommunicationManagement: React.FC = () => {
                     </span>
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{ann.targetAudience}</span>
                   </div>
-                  <button onClick={() => handleDeleteAnn(ann.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeWidth={2}/></svg>
-                  </button>
+                  {!isDoctor && (
+                    <button onClick={() => handleDeleteAnn(ann.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeWidth={2}/></svg>
+                    </button>
+                  )}
                 </div>
                 <h3 className="text-lg font-bold text-slate-800">{ann.title}</h3>
                 <p className="text-sm text-slate-500 mt-2 leading-relaxed">{ann.content}</p>
@@ -162,9 +177,11 @@ const CommunicationManagement: React.FC = () => {
         <div className="space-y-6">
            <div className="flex justify-between items-center">
               <h2 className="text-lg font-bold text-slate-700">SMS Outbox Activity</h2>
-              <button onClick={() => setShowSMSModal(true)} className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold text-xs hover:bg-black transition-all">
-                Compose Ad-hoc SMS
-              </button>
+              {!isDoctor && (
+                <button onClick={() => setShowSMSModal(true)} className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold text-xs hover:bg-black transition-all">
+                  Compose Ad-hoc SMS
+                </button>
+              )}
            </div>
            <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
              <table className="w-full text-left">
@@ -212,10 +229,12 @@ const CommunicationManagement: React.FC = () => {
                     <button onClick={() => setEmailView('sent')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${emailView === 'sent' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-400'}`}>Sent</button>
                  </div>
               </div>
-              <button onClick={() => setShowEmailModal(true)} className="bg-sky-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs hover:bg-sky-700 transition-all flex items-center">
-                <Icons.Mail className="w-4 h-4 mr-2" />
-                Compose Email
-              </button>
+              {!isDoctor && (
+                <button onClick={() => setShowEmailModal(true)} className="bg-sky-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs hover:bg-sky-700 transition-all flex items-center">
+                  <Icons.Mail className="w-4 h-4 mr-2" />
+                  Compose Email
+                </button>
+              )}
            </div>
            
            <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
