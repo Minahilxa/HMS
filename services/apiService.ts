@@ -8,300 +8,846 @@ import {
   CMSBlog, CMSSlider, CMSSEOSetting, LeaveRequest, 
   DoctorPerformance, InternalAnnouncement, SMSLog, EmailLog, 
   HospitalSettings, EmergencyNumber, PaymentGateway, BackupLog, 
-  SecuritySetting, AccessHistory, TimeSlot, CustomReport, PatientGrowthEntry,
-  PatientStatus, AppointmentSource, BillingCategory, EHRRecord, Prescription
+  SecuritySetting, AccessHistory, TimeSlot, CustomReport, PatientGrowthEntry
 } from '../types';
-
-const DB_KEYS = {
-  USERS: 'healsync_db_users',
-  PATIENTS: 'healsync_db_patients',
-  DOCTORS: 'healsync_db_doctors',
-  APPOINTMENTS: 'healsync_db_appointments',
-  DEPARTMENTS: 'healsync_db_departments',
-  SERVICES: 'healsync_db_services',
-  INVOICES: 'healsync_db_invoices',
-  LAB_TESTS: 'healsync_db_lab_tests',
-  LAB_SAMPLES: 'healsync_db_lab_samples',
-  RADIO_ORDERS: 'healsync_db_radio_orders',
-  PHARMACY_INV: 'healsync_db_pharmacy_inv',
-  PHARMACY_SALES: 'healsync_db_pharmacy_sales',
-  PHARMACY_SUPP: 'healsync_db_pharmacy_supp',
-  INSURANCE_PANELS: 'healsync_db_insurance_panels',
-  INSURANCE_CLAIMS: 'healsync_db_insurance_claims',
-  PATIENT_COVERAGE: 'healsync_db_patient_coverage',
-  CMS_PAGES: 'healsync_db_cms_pages',
-  CMS_BLOGS: 'healsync_db_cms_blogs',
-  CMS_SLIDERS: 'healsync_db_cms_sliders',
-  CMS_SEO: 'healsync_db_cms_seo',
-  ANNOUNCEMENTS: 'healsync_db_announcements',
-  SMS_LOGS: 'healsync_db_sms_logs',
-  EMAIL_LOGS: 'healsync_db_email_logs',
-  SETTINGS: 'healsync_db_settings',
-  EMERGENCY_NUMS: 'healsync_db_emergency_nums',
-  EMERGENCY_CASES: 'healsync_db_emergency_cases',
-  PAYMENTS: 'healsync_db_payments',
-  BACKUPS: 'healsync_db_backups',
-  SECURITY: 'healsync_db_security',
-  LEAVES: 'healsync_db_leaves',
-  PERFORMANCE: 'healsync_db_performance',
-  SLOTS: 'healsync_db_slots',
-  ACCESS_HISTORY: 'healsync_db_access_logs',
-  INVITATIONS: 'healsync_db_invitations'
-};
+import { API_BASE, handleResponse, getHeaders } from '../api_config';
 
 class ApiService {
-  constructor() {
-    this.seedDatabase();
-  }
-
-  private seedDatabase() {
-    if (!localStorage.getItem(DB_KEYS.USERS)) {
-      localStorage.setItem(DB_KEYS.USERS, JSON.stringify([
-        { id: 'u1', username: 'admin', password: 'password123', name: 'Master Admin', role: UserRole.SUPER_ADMIN, email: 'abbasminahil1@gmail.com' },
-        { id: 'u2', username: 'staff_admin', password: 'password123', name: 'Office Admin', role: UserRole.ADMIN, email: 'admin@healsync.com' },
-        { id: 'u3', username: 'doctor', password: 'password123', name: 'Dr. Sarah Wilson', role: UserRole.DOCTOR, email: 'sarah@healsync.com' },
-        { id: 'u4', username: 'nurse', password: 'password123', name: 'Nurse Joy', role: UserRole.NURSE, email: 'joy@healsync.com' },
-        { id: 'u5', username: 'lab_tech', password: 'password123', name: 'Mark Tech', role: UserRole.LAB_TECH, email: 'mark@healsync.com' },
-        { id: 'u6', username: 'radiologist', password: 'password123', name: 'Dr. Ray X', role: UserRole.RADIOLOGIST, email: 'ray@healsync.com' },
-        { id: 'u7', username: 'pharmacist', password: 'password123', name: 'Pharma Phil', role: UserRole.PHARMACIST, email: 'phil@healsync.com' },
-        { id: 'u8', username: 'receptionist', password: 'password123', name: 'Alice Front', role: UserRole.RECEPTIONIST, email: 'alice@healsync.com' },
-        { id: 'u9', username: 'accountant', password: 'password123', name: 'Money Mike', role: UserRole.ACCOUNTANT, email: 'mike@healsync.com' },
-        { id: 'u10', username: 'patient', password: 'password123', name: 'John Doe', role: UserRole.PATIENT, email: 'john@gmail.com' }
-      ]));
-
-      localStorage.setItem(DB_KEYS.SETTINGS, JSON.stringify({
-        name: 'HealSync General Hospital', tagline: 'Excellence in Clinical Care', address: '123 Medical Blvd, Health City', email: 'info@healsync.com', phone: '+1 234 567 890', website: 'www.healsync.com', opdTimings: 'Mon-Sat: 08:00 AM - 08:00 PM'
-      }));
-    }
-  }
-
-  private getDB<T>(key: string): T[] {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : [];
-  }
-
-  private saveDB<T>(key: string, data: T[]) {
-    localStorage.setItem(key, JSON.stringify(data));
-  }
-
+  // --- AUTHENTICATION ---
   async login(credentials: any): Promise<{ user: User; token: string }> {
-    const users = this.getDB<any>(DB_KEYS.USERS);
-    const user = users.find(u => u.username === credentials.username && u.password === credentials.password);
-    if (user) {
-      const { password, ...userSafe } = user;
-      return { user: userSafe as User, token: 'session_token_' + Date.now() };
-    }
-    throw new Error('Access Denied: Invalid credentials.');
+    const response = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(credentials),
+    });
+    return handleResponse(response);
   }
 
+  // --- DASHBOARD & ANALYTICS ---
   async getInitDashboard(): Promise<{ stats: DashboardStats; revenue: RevenueData[]; doctors: Doctor[]; emergencyCases: EmergencyCase[] }> {
-    const stats = await this.getDashboardStats();
-    const doctors = await this.getDoctors();
-    const emergencyCases = await this.getEmergencyCases();
-    const revenue = await this.getRevenueSummary();
-    return { stats, revenue, doctors, emergencyCases };
-  }
-
-  private async create<T>(key: string, data: Partial<T>, prefix: string): Promise<T> {
-    const items = this.getDB<any>(key);
-    const newItem = { ...data, id: `${prefix}-${Date.now()}` } as any;
-    this.saveDB(key, [...items, newItem]);
-    return newItem as T;
-  }
-
-  private async update<T>(key: string, id: string, updates: Partial<T>): Promise<boolean> {
-    const items = this.getDB<any>(key);
-    const idx = items.findIndex((i: any) => i.id === id);
-    if (idx > -1) {
-      items[idx] = { ...items[idx], ...updates };
-      this.saveDB(key, items);
-      return true;
-    }
-    return false;
-  }
-
-  private async remove(key: string, id: string): Promise<boolean> {
-    const items = this.getDB<any>(key);
-    this.saveDB(key, items.filter((i: any) => i.id !== id));
-    return true;
-  }
-
-  async getUsers(): Promise<User[]> { return this.getDB(DB_KEYS.USERS); }
-  async updateUserRole(id: string, r: any) { return this.update(DB_KEYS.USERS, id, { role: r }); }
-  
-  async sendUserInvitation(email: string, role: UserRole): Promise<boolean> {
-    const invitations = this.getDB<any>(DB_KEYS.INVITATIONS);
-    const newInvitation = { id: `INV-${Date.now()}`, email, role, status: 'Sent', timestamp: new Date().toLocaleString() };
-    this.saveDB(DB_KEYS.INVITATIONS, [...invitations, newInvitation]);
-    await this.sendEmail({ senderEmail: 'abbasminahil1@gmail.com', recipientEmail: email, subject: 'Hospital System Invitation', content: `You have been invited as a ${role}.`, direction: 'Outgoing', type: 'General' });
-    return true;
-  }
-
-  async getPatients(): Promise<Patient[]> { return this.getDB(DB_KEYS.PATIENTS); }
-  async getDoctors(): Promise<Doctor[]> { return this.getDB(DB_KEYS.DOCTORS); }
-  async getAppointments(): Promise<Appointment[]> { return this.getDB(DB_KEYS.APPOINTMENTS); }
-  async getDepartments(): Promise<HospitalDepartment[]> { return this.getDB(DB_KEYS.DEPARTMENTS); }
-  async getServices(): Promise<HospitalService[]> { return this.getDB(DB_KEYS.SERVICES); }
-  async getInvoices(): Promise<Invoice[]> { return this.getDB(DB_KEYS.INVOICES); }
-  async getLabSamples(): Promise<LabSample[]> { return this.getDB(DB_KEYS.LAB_SAMPLES); }
-  async getRadiologyOrders(): Promise<RadiologyOrder[]> { return this.getDB(DB_KEYS.RADIO_ORDERS); }
-  async getLeaveRequests(): Promise<LeaveRequest[]> { return this.getDB(DB_KEYS.LEAVES); }
-  async getSlots(): Promise<TimeSlot[]> { return this.getDB(DB_KEYS.SLOTS); }
-  async getDoctorPerformance(): Promise<DoctorPerformance[]> { return this.getDB(DB_KEYS.PERFORMANCE); }
-  async getAccessHistory(): Promise<AccessHistory[]> { return this.getDB(DB_KEYS.ACCESS_HISTORY); }
-  
-  async getEmergencyNumbers(): Promise<EmergencyNumber[]> { return this.getDB(DB_KEYS.EMERGENCY_NUMS); }
-  async createEmergencyNumber(d: Partial<EmergencyNumber>): Promise<EmergencyNumber> { return this.create<EmergencyNumber>(DB_KEYS.EMERGENCY_NUMS, d, 'EN'); }
-  async updateEmergencyNumber(id: string, d: Partial<EmergencyNumber>) { return this.update(DB_KEYS.EMERGENCY_NUMS, id, d); }
-  async deleteEmergencyNumber(id: string) { return this.remove(DB_KEYS.EMERGENCY_NUMS, id); }
-
-  async getEmergencyCases(): Promise<EmergencyCase[]> { return this.getDB(DB_KEYS.EMERGENCY_CASES); }
-  async createEmergencyCase(d: Partial<EmergencyCase>): Promise<EmergencyCase> { return this.create<EmergencyCase>(DB_KEYS.EMERGENCY_CASES, { ...d, timestamp: new Date().toLocaleString() }, 'EC'); }
-  async updateEmergencyCase(id: string, d: Partial<EmergencyCase>) { return this.update(DB_KEYS.EMERGENCY_CASES, id, d); }
-  async deleteEmergencyCase(id: string) { return this.remove(DB_KEYS.EMERGENCY_CASES, id); }
-
-  async getPaymentGateways(): Promise<PaymentGateway[]> { return this.getDB(DB_KEYS.PAYMENTS); }
-  async createPaymentGateway(d: Partial<PaymentGateway>): Promise<PaymentGateway> { return this.create<PaymentGateway>(DB_KEYS.PAYMENTS, d, 'GW'); }
-  async updatePaymentGateway(id: string, d: Partial<PaymentGateway>) { return this.update(DB_KEYS.PAYMENTS, id, d); }
-  async deletePaymentGateway(id: string) { return this.remove(DB_KEYS.PAYMENTS, id); }
-
-  async getSecuritySettings(): Promise<SecuritySetting[]> { return this.getDB(DB_KEYS.SECURITY); }
-  async createSecuritySetting(d: Partial<SecuritySetting>): Promise<SecuritySetting> { return this.create<SecuritySetting>(DB_KEYS.SECURITY, d, 'SEC'); }
-  async updateSecuritySetting(id: string, d: Partial<SecuritySetting>) { return this.update(DB_KEYS.SECURITY, id, d); }
-  async deleteSecuritySetting(id: string) { return this.remove(DB_KEYS.SECURITY, id); }
-  async toggleSecuritySetting(id: string) {
-    const items = this.getDB<SecuritySetting>(DB_KEYS.SECURITY);
-    const item = items.find(i => i.id === id);
-    if (item) return this.update(DB_KEYS.SECURITY, id, { isEnabled: !item.isEnabled });
-    return false;
-  }
-
-  async getBackupLogs(): Promise<BackupLog[]> { return this.getDB(DB_KEYS.BACKUPS); }
-  async runManualBackup() {
-    const logs = this.getDB<BackupLog>(DB_KEYS.BACKUPS);
-    const newLog = { id: `BK-${Date.now()}`, timestamp: new Date().toLocaleString(), size: `${(Math.random() * 50 + 10).toFixed(2)} MB`, status: 'Success', type: 'Manual' } as BackupLog;
-    this.saveDB(DB_KEYS.BACKUPS, [newLog, ...logs]);
-    return { status: 'Success' };
-  }
-  async deleteBackup(id: string) { return this.remove(DB_KEYS.BACKUPS, id); }
-
-  async getHospitalSettings(): Promise<HospitalSettings> { return JSON.parse(localStorage.getItem(DB_KEYS.SETTINGS) || '{}'); }
-  async updateHospitalSettings(d: Partial<HospitalSettings>) {
-    const current = await this.getHospitalSettings();
-    localStorage.setItem(DB_KEYS.SETTINGS, JSON.stringify({ ...current, ...d }));
-    return true;
+    const response = await fetch(`${API_BASE}/init-dashboard`, { headers: getHeaders() });
+    return handleResponse(response);
   }
 
   async getDashboardStats(): Promise<DashboardStats> {
-    const patients = this.getDB<Patient>(DB_KEYS.PATIENTS);
-    const doctors = this.getDB<Doctor>(DB_KEYS.DOCTORS);
-    const invoices = this.getDB<Invoice>(DB_KEYS.INVOICES);
-    const cases = this.getDB<EmergencyCase>(DB_KEYS.EMERGENCY_CASES);
-    return {
-      dailyAppointments: 12,
-      opdPatients: patients.filter(p => p.status === PatientStatus.OPD).length || 45,
-      ipdPatients: patients.filter(p => p.status === PatientStatus.IPD).length || 12,
-      emergencyCases: cases.length || 2,
-      totalRevenue: invoices.filter(inv => inv.status === 'Paid').reduce((sum, inv) => sum + inv.total, 0) || 12450,
-      doctorsOnDuty: doctors.filter(d => d.status === 'On Duty').length || 8
-    };
+    const response = await fetch(`${API_BASE}/stats`, { headers: getHeaders() });
+    return handleResponse(response);
   }
 
   async getRevenueSummary(): Promise<RevenueData[]> {
-    return [{ date: '2024-05-18', amount: 5100, category: 'Pharmacy' }, { date: '2024-05-19', amount: 3200, category: 'OPD' }, { date: '2024-05-20', amount: 4150, category: 'IPD' }];
+    const response = await fetch(`${API_BASE}/revenue`, { headers: getHeaders() });
+    return handleResponse(response);
   }
 
-  async getCMSPages(): Promise<CMSPage[]> { return this.getDB(DB_KEYS.CMS_PAGES); }
-  async getCMSBlogs(): Promise<CMSBlog[]> { return this.getDB(DB_KEYS.CMS_BLOGS); }
-  async getCMSSliders(): Promise<CMSSlider[]> { return this.getDB(DB_KEYS.CMS_SLIDERS); }
-  async getCMSSEO(): Promise<CMSSEOSetting[]> { return this.getDB(DB_KEYS.CMS_SEO); }
-  async createCMSPage(d: any): Promise<CMSPage> { return this.create<CMSPage>(DB_KEYS.CMS_PAGES, d, 'PG'); }
-  async updateCMSPage(id: string, d: any) { return this.update(DB_KEYS.CMS_PAGES, id, d); }
-  async deleteCMSPage(id: string) { return this.remove(DB_KEYS.CMS_PAGES, id); }
-  async createCMSBlog(d: any): Promise<CMSBlog> { return this.create<CMSBlog>(DB_KEYS.CMS_BLOGS, d, 'BL'); }
-  async updateCMSBlog(id: string, d: any) { return this.update(DB_KEYS.CMS_BLOGS, id, d); }
-  async deleteCMSBlog(id: string) { return this.remove(DB_KEYS.CMS_BLOGS, id); }
-  async createCMSSlider(d: any): Promise<CMSSlider> { return this.create<CMSSlider>(DB_KEYS.CMS_SLIDERS, d, 'SL'); }
-  async updateCMSSlider(id: string, d: any) { return this.update(DB_KEYS.CMS_SLIDERS, id, d); }
-  async deleteCMSSlider(id: string) { return this.remove(DB_KEYS.CMS_SLIDERS, id); }
-  async createCMSSEO(d: any): Promise<CMSSEOSetting> { return this.create<CMSSEOSetting>(DB_KEYS.CMS_SEO, d, 'SEO'); }
-  async updateCMSSEO(id: string, d: any) { return this.update(DB_KEYS.CMS_SEO, id, d); }
-  async deleteCMSSEO(id: string) { return this.remove(DB_KEYS.CMS_SEO, id); }
-  async updateDoctorCMS(id: string, d: any) { return this.update(DB_KEYS.DOCTORS, id, d); }
-
-  async getInternalAnnouncements(): Promise<InternalAnnouncement[]> { return this.getDB(DB_KEYS.ANNOUNCEMENTS); }
-  async createAnnouncement(d: any): Promise<InternalAnnouncement> { return this.create<InternalAnnouncement>(DB_KEYS.ANNOUNCEMENTS, d, 'ANN'); }
-  async deleteAnnouncement(id: string) { return this.remove(DB_KEYS.ANNOUNCEMENTS, id); }
-  async getSMSLogs(): Promise<SMSLog[]> { return this.getDB(DB_KEYS.SMS_LOGS); }
-  async sendSMS(d: any): Promise<SMSLog> { return this.create<SMSLog>(DB_KEYS.SMS_LOGS, d, 'SMS'); }
-  async getEmailLogs(): Promise<EmailLog[]> { return this.getDB(DB_KEYS.EMAIL_LOGS); }
-  async sendEmail(d: any): Promise<EmailLog> { return this.create<EmailLog>(DB_KEYS.EMAIL_LOGS, d, 'EML'); }
-
-  async getInsurancePanels(): Promise<InsurancePanel[]> { return this.getDB(DB_KEYS.INSURANCE_PANELS); }
-  async getInsuranceClaims(): Promise<InsuranceClaim[]> { return this.getDB(DB_KEYS.INSURANCE_CLAIMS); }
-  async createInsurancePanel(d: any): Promise<InsurancePanel> { return this.create<InsurancePanel>(DB_KEYS.INSURANCE_PANELS, d, 'PAN'); }
-  async updateInsurancePanel(id: string, d: any) { return this.update(DB_KEYS.INSURANCE_PANELS, id, d); }
-  async deleteInsurancePanel(id: string) { return this.remove(DB_KEYS.INSURANCE_PANELS, id); }
-  async updateClaimStatus(id: string, d: any) { return this.update(DB_KEYS.INSURANCE_CLAIMS, id, d); }
-  async getPatientCoverage(id: string): Promise<PatientCoverage[]> { return this.getDB<PatientCoverage>(DB_KEYS.PATIENT_COVERAGE).filter((c: any) => c.patientId === id); }
-  async createPatientCoverage(d: any): Promise<PatientCoverage> { return this.create<PatientCoverage>(DB_KEYS.PATIENT_COVERAGE, d, 'COV'); }
-
-  async getPharmacyInventory(): Promise<PharmacyItem[]> { return this.getDB(DB_KEYS.PHARMACY_INV); }
-  async createPharmacyItem(d: any): Promise<PharmacyItem> { return this.create<PharmacyItem>(DB_KEYS.PHARMACY_INV, d, 'DRG'); }
-  async updatePharmacyItem(id: string, d: any) { return this.update(DB_KEYS.PHARMACY_INV, id, d); }
-  async deletePharmacyItem(id: string) { return this.remove(DB_KEYS.PHARMACY_INV, id); }
-  async getPharmacySales(): Promise<PharmacySale[]> { return this.getDB(DB_KEYS.PHARMACY_SALES); }
-  async createPharmacySale(d: any): Promise<PharmacySale> { return this.create<PharmacySale>(DB_KEYS.PHARMACY_SALES, d, 'SL'); }
-  async updatePharmacySale(id: string, d: any) { return this.update(DB_KEYS.PHARMACY_SALES, id, d); }
-  async deletePharmacySale(id: string) { return this.remove(DB_KEYS.PHARMACY_SALES, id); }
-  async getPharmacySuppliers(): Promise<PharmacySupplier[]> { return this.getDB(DB_KEYS.PHARMACY_SUPP); }
-  async createPharmacySupplier(d: any): Promise<PharmacySupplier> { return this.create<PharmacySupplier>(DB_KEYS.PHARMACY_SUPP, d, 'SUP'); }
-  async updatePharmacySupplier(id: string, d: any) { return this.update(DB_KEYS.PHARMACY_SUPP, id, d); }
-  async deletePharmacySupplier(id: string) { return this.remove(DB_KEYS.PHARMACY_SUPP, id); }
-
-  async getLabTests(): Promise<LabTest[]> { return this.getDB(DB_KEYS.LAB_TESTS); }
-  async createRadiologyOrder(d: any): Promise<RadiologyOrder> { return this.create<RadiologyOrder>(DB_KEYS.RADIO_ORDERS, d, 'RAD'); }
-  async updateRadiologyStatus(id: string, s: string, n?: string) { return this.update(DB_KEYS.RADIO_ORDERS, id, { status: s as any, radiologistNotes: n }); }
-  async updateSampleStatus(id: string, s: string, r?: string) { return this.update(DB_KEYS.LAB_SAMPLES, id, { status: s as any, result: r }); }
-  async registerPatient(d: any): Promise<Patient> { return this.create<Patient>(DB_KEYS.PATIENTS, d, 'P'); }
-  async updatePatient(id: string, d: any) { return this.update(DB_KEYS.PATIENTS, id, d); }
-  async addEHRRecord(id: string, d: any) { 
-    const pts = this.getDB<Patient>(DB_KEYS.PATIENTS);
-    const pt = pts.find(p => p.id === id);
-    if (pt) { pt.medicalHistory.push({ ...d, id: `EHR-${Date.now()}` }); this.saveDB(DB_KEYS.PATIENTS, pts); return true; }
-    return false;
+  async getPatientGrowthStats(): Promise<PatientGrowthEntry[]> {
+    const response = await fetch(`${API_BASE}/analytics/growth`, { headers: getHeaders() });
+    return handleResponse(response);
   }
-  async addPrescription(id: string, d: any) {
-    const pts = this.getDB<Patient>(DB_KEYS.PATIENTS);
-    const pt = pts.find(p => p.id === id);
-    if (pt) { pt.prescriptions.push({ ...d, id: `PR-${Date.now()}` }); this.saveDB(DB_KEYS.PATIENTS, pts); return true; }
-    return false;
+
+  // --- USER MANAGEMENT ---
+  async getUsers(): Promise<User[]> {
+    const response = await fetch(`${API_BASE}/users`, { headers: getHeaders() });
+    return handleResponse(response);
   }
-  async createDepartment(d: any): Promise<HospitalDepartment> { return this.create<HospitalDepartment>(DB_KEYS.DEPARTMENTS, d, 'DEP'); }
-  async updateDepartment(id: string, d: any) { return this.update(DB_KEYS.DEPARTMENTS, id, d); }
-  async createService(d: any): Promise<HospitalService> { return this.create<HospitalService>(DB_KEYS.SERVICES, d, 'SRV'); }
-  async updateService(id: string, d: any) { return this.update(DB_KEYS.SERVICES, id, d); }
-  async deleteService(id: string) { return this.remove(DB_KEYS.SERVICES, id); }
-  async createDoctor(d: any): Promise<Doctor> { return this.create<Doctor>(DB_KEYS.DOCTORS, d, 'D'); }
-  async updateDoctor(id: string, d: any) { return this.update(DB_KEYS.DOCTORS, id, d); }
-  async updateDoctorStatus(id: string, s: string) { return this.update(DB_KEYS.DOCTORS, id, { status: s as any }); }
-  async createAppointment(d: any): Promise<Appointment> { return this.create<Appointment>(DB_KEYS.APPOINTMENTS, d, 'APT'); }
-  async updateAppointmentStatus(id: string, s: string) { return this.update(DB_KEYS.APPOINTMENTS, id, { status: s as any }); }
-  async createSlot(d: any): Promise<TimeSlot> { return this.create<TimeSlot>(DB_KEYS.SLOTS, d, 'SLT'); }
-  async updateLeaveStatus(id: string, s: string) { return this.update(DB_KEYS.LEAVES, id, { status: s as any }); }
-  async updateInvoice(id: string, d: any) { return this.update(DB_KEYS.INVOICES, id, d); }
-  async createInvoice(d: any): Promise<Invoice> { 
-    const items = this.getDB<Invoice>(DB_KEYS.INVOICES);
-    const amount = d.amount || 0;
-    const tax = amount * 0.1;
-    const total = amount + tax - (d.discount || 0);
-    const newInv = { ...d, id: `INV-${Date.now()}`, date: new Date().toISOString().split('T')[0], tax, total, status: 'Unpaid' } as Invoice;
-    this.saveDB(DB_KEYS.INVOICES, [...items, newInv]);
-    return newInv;
+
+  async updateUserRole(id: string, role: UserRole) {
+    const response = await fetch(`${API_BASE}/users/${id}/role`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ role }),
+    });
+    return handleResponse(response);
   }
-  async getPatientGrowthStats(): Promise<PatientGrowthEntry[]> { return []; }
-  async getCustomReports(): Promise<CustomReport[]> { return []; }
-  async deleteCustomReport(id: string) { return true; }
+
+  async sendUserInvitation(email: string, role: UserRole): Promise<boolean> {
+    const response = await fetch(`${API_BASE}/users/invite`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ email, role }),
+    });
+    return (await handleResponse(response)).message === 'Invitation sent successfully.';
+  }
+
+  // --- PATIENT MANAGEMENT ---
+  async getPatients(): Promise<Patient[]> {
+    const response = await fetch(`${API_BASE}/patients`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async registerPatient(data: any): Promise<Patient> {
+    const response = await fetch(`${API_BASE}/patients`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async updatePatient(id: string, data: any) {
+    const response = await fetch(`${API_BASE}/patients/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async addEHRRecord(id: string, data: any) {
+    const response = await fetch(`${API_BASE}/patients/${id}/ehr`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async addPrescription(id: string, data: any) {
+    const response = await fetch(`${API_BASE}/patients/${id}/prescriptions`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  // --- DOCTOR MANAGEMENT ---
+  async getDoctors(): Promise<Doctor[]> {
+    const response = await fetch(`${API_BASE}/doctors`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async createDoctor(data: any): Promise<Doctor> {
+    const response = await fetch(`${API_BASE}/doctors`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async updateDoctor(id: string, data: any) {
+    const response = await fetch(`${API_BASE}/doctors/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async updateDoctorStatus(id: string, status: string) {
+    const response = await fetch(`${API_BASE}/doctors/${id}/status`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ status }),
+    });
+    return handleResponse(response);
+  }
+
+  async getLeaveRequests(): Promise<LeaveRequest[]> {
+    const response = await fetch(`${API_BASE}/leaves`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async updateLeaveStatus(id: string, status: string) {
+    const response = await fetch(`${API_BASE}/leaves/${id}/status`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ status }),
+    });
+    return handleResponse(response);
+  }
+
+  async getDoctorPerformance(): Promise<DoctorPerformance[]> {
+    const response = await fetch(`${API_BASE}/doctors/performance`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  // --- APPOINTMENTS ---
+  async getAppointments(): Promise<Appointment[]> {
+    const response = await fetch(`${API_BASE}/appointments`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async createAppointment(data: any): Promise<Appointment> {
+    const response = await fetch(`${API_BASE}/appointments`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async updateAppointmentStatus(id: string, status: string) {
+    const response = await fetch(`${API_BASE}/appointments/${id}/status`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ status }),
+    });
+    return handleResponse(response);
+  }
+
+  async getSlots(): Promise<TimeSlot[]> {
+    const response = await fetch(`${API_BASE}/slots`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async createSlot(data: any): Promise<TimeSlot> {
+    const response = await fetch(`${API_BASE}/slots`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  // --- DEPARTMENTS & SERVICES ---
+  async getDepartments(): Promise<HospitalDepartment[]> {
+    const response = await fetch(`${API_BASE}/departments`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async createDepartment(data: any): Promise<HospitalDepartment> {
+    const response = await fetch(`${API_BASE}/departments`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async updateDepartment(id: string, data: any) {
+    const response = await fetch(`${API_BASE}/departments/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async getServices(): Promise<HospitalService[]> {
+    const response = await fetch(`${API_BASE}/services`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async createService(data: any): Promise<HospitalService> {
+    const response = await fetch(`${API_BASE}/services`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async updateService(id: string, data: any) {
+    const response = await fetch(`${API_BASE}/services/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async deleteService(id: string) {
+    const response = await fetch(`${API_BASE}/services/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  }
+
+  // --- BILLING & INVOICES ---
+  async getInvoices(): Promise<Invoice[]> {
+    const response = await fetch(`${API_BASE}/invoices`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async createInvoice(data: any): Promise<Invoice> {
+    const response = await fetch(`${API_BASE}/invoices`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async updateInvoice(id: string, data: any) {
+    const response = await fetch(`${API_BASE}/invoices/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  // --- LABORATORY ---
+  async getLabTests(): Promise<LabTest[]> {
+    const response = await fetch(`${API_BASE}/lab/tests`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async getLabSamples(): Promise<LabSample[]> {
+    const response = await fetch(`${API_BASE}/lab/samples`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async updateSampleStatus(id: string, status: string, result?: string) {
+    const response = await fetch(`${API_BASE}/lab/samples/${id}/status`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ status, result }),
+    });
+    return handleResponse(response);
+  }
+
+  // --- RADIOLOGY ---
+  async getRadiologyOrders(): Promise<RadiologyOrder[]> {
+    const response = await fetch(`${API_BASE}/radiology/orders`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async createRadiologyOrder(data: any): Promise<RadiologyOrder> {
+    const response = await fetch(`${API_BASE}/radiology/orders`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async updateRadiologyStatus(id: string, status: string, notes?: string) {
+    const response = await fetch(`${API_BASE}/radiology/orders/${id}/status`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ status, notes }),
+    });
+    return handleResponse(response);
+  }
+
+  // --- PHARMACY ---
+  async getPharmacyInventory(): Promise<PharmacyItem[]> {
+    const response = await fetch(`${API_BASE}/pharmacy/inventory`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async createPharmacyItem(data: any): Promise<PharmacyItem> {
+    const response = await fetch(`${API_BASE}/pharmacy/inventory`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async updatePharmacyItem(id: string, data: any) {
+    const response = await fetch(`${API_BASE}/pharmacy/inventory/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async deletePharmacyItem(id: string) {
+    const response = await fetch(`${API_BASE}/pharmacy/inventory/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  }
+
+  async getPharmacySales(): Promise<PharmacySale[]> {
+    const response = await fetch(`${API_BASE}/pharmacy/sales`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async createPharmacySale(data: any): Promise<PharmacySale> {
+    const response = await fetch(`${API_BASE}/pharmacy/sales`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async updatePharmacySale(id: string, data: any) {
+    const response = await fetch(`${API_BASE}/pharmacy/sales/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async deletePharmacySale(id: string) {
+    const response = await fetch(`${API_BASE}/pharmacy/sales/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  }
+
+  async getPharmacySuppliers(): Promise<PharmacySupplier[]> {
+    const response = await fetch(`${API_BASE}/pharmacy/suppliers`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async createPharmacySupplier(data: any): Promise<PharmacySupplier> {
+    const response = await fetch(`${API_BASE}/pharmacy/suppliers`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async updatePharmacySupplier(id: string, data: any) {
+    const response = await fetch(`${API_BASE}/pharmacy/suppliers/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async deletePharmacySupplier(id: string) {
+    const response = await fetch(`${API_BASE}/pharmacy/suppliers/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  }
+
+  // --- INSURANCE ---
+  async getInsurancePanels(): Promise<InsurancePanel[]> {
+    const response = await fetch(`${API_BASE}/insurance/panels`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async createInsurancePanel(data: any): Promise<InsurancePanel> {
+    const response = await fetch(`${API_BASE}/insurance/panels`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async updateInsurancePanel(id: string, data: any) {
+    const response = await fetch(`${API_BASE}/insurance/panels/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async deleteInsurancePanel(id: string) {
+    const response = await fetch(`${API_BASE}/insurance/panels/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  }
+
+  async getInsuranceClaims(): Promise<InsuranceClaim[]> {
+    const response = await fetch(`${API_BASE}/insurance/claims`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async updateClaimStatus(id: string, data: any) {
+    const response = await fetch(`${API_BASE}/insurance/claims/${id}/status`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async getPatientCoverage(id: string): Promise<PatientCoverage[]> {
+    const response = await fetch(`${API_BASE}/insurance/coverage/${id}`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async createPatientCoverage(data: any): Promise<PatientCoverage> {
+    const response = await fetch(`${API_BASE}/insurance/coverage`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  // --- CMS MANAGEMENT ---
+  async getCMSPages(): Promise<CMSPage[]> {
+    const response = await fetch(`${API_BASE}/cms/pages`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async createCMSPage(data: any): Promise<CMSPage> {
+    const response = await fetch(`${API_BASE}/cms/pages`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async updateCMSPage(id: string, data: any) {
+    const response = await fetch(`${API_BASE}/cms/pages/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async deleteCMSPage(id: string) {
+    const response = await fetch(`${API_BASE}/cms/pages/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  }
+
+  async getCMSBlogs(): Promise<CMSBlog[]> {
+    const response = await fetch(`${API_BASE}/cms/blogs`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async createCMSBlog(data: any): Promise<CMSBlog> {
+    const response = await fetch(`${API_BASE}/cms/blogs`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async updateCMSBlog(id: string, data: any) {
+    const response = await fetch(`${API_BASE}/cms/blogs/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async deleteCMSBlog(id: string) {
+    const response = await fetch(`${API_BASE}/cms/blogs/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  }
+
+  async getCMSSliders(): Promise<CMSSlider[]> {
+    const response = await fetch(`${API_BASE}/cms/sliders`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async createCMSSlider(data: any): Promise<CMSSlider> {
+    const response = await fetch(`${API_BASE}/cms/sliders`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async updateCMSSlider(id: string, data: any) {
+    const response = await fetch(`${API_BASE}/cms/sliders/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async deleteCMSSlider(id: string) {
+    const response = await fetch(`${API_BASE}/cms/sliders/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  }
+
+  async getCMSSEO(): Promise<CMSSEOSetting[]> {
+    const response = await fetch(`${API_BASE}/cms/seo`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async createCMSSEO(data: any): Promise<CMSSEOSetting> {
+    const response = await fetch(`${API_BASE}/cms/seo`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async updateCMSSEO(id: string, data: any) {
+    const response = await fetch(`${API_BASE}/cms/seo/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async deleteCMSSEO(id: string) {
+    const response = await fetch(`${API_BASE}/cms/seo/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  }
+
+  async updateDoctorCMS(id: string, data: any) {
+    const response = await fetch(`${API_BASE}/doctors/${id}/cms`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  // --- COMMUNICATION ---
+  async getInternalAnnouncements(): Promise<InternalAnnouncement[]> {
+    const response = await fetch(`${API_BASE}/communications/announcements`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async createAnnouncement(data: any): Promise<InternalAnnouncement> {
+    const response = await fetch(`${API_BASE}/communications/announcements`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async deleteAnnouncement(id: string) {
+    const response = await fetch(`${API_BASE}/communications/announcements/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  }
+
+  async getSMSLogs(): Promise<SMSLog[]> {
+    const response = await fetch(`${API_BASE}/communications/sms`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async sendSMS(data: any): Promise<SMSLog> {
+    const response = await fetch(`${API_BASE}/communications/sms`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async getEmailLogs(): Promise<EmailLog[]> {
+    const response = await fetch(`${API_BASE}/emails`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async sendEmail(data: any): Promise<EmailLog> {
+    const response = await fetch(`${API_BASE}/emails/send`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  // --- EMERGENCY MANAGEMENT ---
+  async getEmergencyNumbers(): Promise<EmergencyNumber[]> {
+    const response = await fetch(`${API_BASE}/settings/emergency-numbers`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async createEmergencyNumber(data: Partial<EmergencyNumber>): Promise<EmergencyNumber> {
+    const response = await fetch(`${API_BASE}/settings/emergency-numbers`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async updateEmergencyNumber(id: string, data: Partial<EmergencyNumber>) {
+    const response = await fetch(`${API_BASE}/settings/emergency-numbers/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async deleteEmergencyNumber(id: string) {
+    const response = await fetch(`${API_BASE}/settings/emergency-numbers/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  }
+
+  async getEmergencyCases(): Promise<EmergencyCase[]> {
+    const response = await fetch(`${API_BASE}/emergency/cases`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async createEmergencyCase(data: Partial<EmergencyCase>): Promise<EmergencyCase> {
+    const response = await fetch(`${API_BASE}/emergency/cases`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async updateEmergencyCase(id: string, data: Partial<EmergencyCase>) {
+    const response = await fetch(`${API_BASE}/emergency/cases/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async deleteEmergencyCase(id: string) {
+    const response = await fetch(`${API_BASE}/emergency/cases/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  }
+
+  // --- SETTINGS & SECURITY ---
+  async getHospitalSettings(): Promise<HospitalSettings> {
+    const response = await fetch(`${API_BASE}/settings/hospital`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async updateHospitalSettings(data: Partial<HospitalSettings>) {
+    const response = await fetch(`${API_BASE}/settings/hospital`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async getPaymentGateways(): Promise<PaymentGateway[]> {
+    const response = await fetch(`${API_BASE}/settings/payments`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async createPaymentGateway(data: Partial<PaymentGateway>): Promise<PaymentGateway> {
+    const response = await fetch(`${API_BASE}/settings/payments`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async updatePaymentGateway(id: string, data: Partial<PaymentGateway>) {
+    const response = await fetch(`${API_BASE}/settings/payments/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async deletePaymentGateway(id: string) {
+    const response = await fetch(`${API_BASE}/settings/payments/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  }
+
+  async getSecuritySettings(): Promise<SecuritySetting[]> {
+    const response = await fetch(`${API_BASE}/settings/security`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async createSecuritySetting(data: Partial<SecuritySetting>): Promise<SecuritySetting> {
+    const response = await fetch(`${API_BASE}/settings/security`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async updateSecuritySetting(id: string, data: Partial<SecuritySetting>) {
+    const response = await fetch(`${API_BASE}/settings/security/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  }
+
+  async deleteSecuritySetting(id: string) {
+    const response = await fetch(`${API_BASE}/settings/security/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  }
+
+  async toggleSecuritySetting(id: string) {
+    const response = await fetch(`${API_BASE}/settings/security/${id}/toggle`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  }
+
+  async getBackupLogs(): Promise<BackupLog[]> {
+    const response = await fetch(`${API_BASE}/settings/backups`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async runManualBackup() {
+    const response = await fetch(`${API_BASE}/settings/backups/run`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  }
+
+  async deleteBackup(id: string) {
+    const response = await fetch(`${API_BASE}/settings/backups/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  }
+
+  async getAccessHistory(): Promise<AccessHistory[]> {
+    const response = await fetch(`${API_BASE}/analytics/access-history`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async getCustomReports(): Promise<CustomReport[]> {
+    const response = await fetch(`${API_BASE}/analytics/reports`, { headers: getHeaders() });
+    return handleResponse(response);
+  }
+
+  async deleteCustomReport(id: string) {
+    const response = await fetch(`${API_BASE}/analytics/reports/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  }
 }
 
 export const apiService = new ApiService();

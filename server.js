@@ -15,201 +15,180 @@ const PORT = process.env.PORT || 5000;
 const SECRET = process.env.JWT_SECRET || 'healsync_enterprise_secure_key_2024';
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/healsync_his';
 
-// --- SCHEMAS ---
-const UserSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true, index: true },
+// --- MODELS ---
+const User = mongoose.model('User', new mongoose.Schema({
+  username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   name: String,
   email: String,
   role: String,
   avatar: String
-});
-const User = mongoose.model('User', UserSchema);
+}));
 
-const PatientSchema = new mongoose.Schema({
+const Patient = mongoose.model('Patient', new mongoose.Schema({
   name: String, age: Number, gender: String, status: String, admissionDate: String, diagnosis: String,
   medicalHistory: Array, prescriptions: Array, email: String, phone: String
-});
-const Patient = mongoose.model('Patient', PatientSchema);
+}));
 
-const EmailSchema = new mongoose.Schema({
-  senderEmail: String,
-  recipientEmail: String,
-  patientName: String,
-  subject: String,
-  content: String,
-  status: String,
-  timestamp: { type: String, default: () => new Date().toLocaleString() },
-  direction: String,
-  type: String
-});
-const Email = mongoose.model('Email', EmailSchema);
+const Doctor = mongoose.model('Doctor', new mongoose.Schema({
+  name: String, specialization: String, department: String, status: String, room: String, 
+  experience: String, schedules: Array, publicBio: String, displayOnWeb: Boolean, profileImage: String
+}));
 
-// Invitation Schema
-const InvitationSchema = new mongoose.Schema({
-  email: { type: String, required: true },
-  role: { type: String, required: true },
-  status: { type: String, default: 'Sent' },
-  timestamp: { type: String, default: () => new Date().toLocaleString() }
-});
-const Invitation = mongoose.model('Invitation', InvitationSchema);
+const Appointment = mongoose.model('Appointment', new mongoose.Schema({
+  patientName: String, doctorId: String, doctorName: String, time: String, date: String, 
+  type: String, source: String, status: String
+}));
 
-// --- MONGODB CONNECTION ---
+const Department = mongoose.model('Department', new mongoose.Schema({
+  name: String, description: String, headDoctorId: String, staffCount: { type: Number, default: 0 }, status: String
+}));
+
+const Service = mongoose.model('Service', new mongoose.Schema({
+  name: String, description: String, cost: Number, category: String, isAvailable: { type: Boolean, default: true }
+}));
+
+const Invoice = mongoose.model('Invoice', new mongoose.Schema({
+  patientId: String, patientName: String, date: String, category: String, amount: Number, 
+  tax: Number, discount: Number, total: Number, status: String, paymentMethod: String, 
+  insuranceProvider: String, insuranceStatus: String
+}));
+
+const LabSample = mongoose.model('LabSample', new mongoose.Schema({
+  patientId: String, patientName: String, testId: String, testName: String, 
+  collectionDate: String, status: String, result: String
+}));
+
+const RadiologyOrder = mongoose.model('RadiologyOrder', new mongoose.Schema({
+  patientId: String, patientName: String, type: String, bodyPart: String, 
+  priority: String, status: String, requestDate: String, radiologistNotes: String
+}));
+
+const PharmacyItem = mongoose.model('PharmacyItem', new mongoose.Schema({
+  name: String, category: String, stock: Number, minStockLevel: Number, 
+  price: Number, expiryDate: String, supplierId: String
+}));
+
+const EmergencyCase = mongoose.model('EmergencyCase', new mongoose.Schema({
+  patientName: String, arrivalType: String, priority: String, timestamp: String, 
+  assignedDoctor: String, status: String
+}));
+
+const Email = mongoose.model('Email', new mongoose.Schema({
+  senderEmail: String, recipientEmail: String, patientName: String, subject: String, 
+  content: String, status: String, timestamp: { type: String, default: () => new Date().toLocaleString() }, 
+  direction: String, type: String
+}));
+
+const Invitation = mongoose.model('Invitation', new mongoose.Schema({
+  email: String, role: String, status: { type: String, default: 'Sent' }, timestamp: String
+}));
+
+const Settings = mongoose.model('Settings', new mongoose.Schema({
+  name: String, tagline: String, address: String, email: String, phone: String, website: String, opdTimings: String
+}));
+
+// --- DATABASE ---
 let isDbConnected = false;
-mongoose.connect(MONGODB_URI, { 
-  serverSelectionTimeoutMS: 2000, 
-  autoIndex: true 
-})
+mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 2000 })
   .then(async () => {
     isDbConnected = true;
     console.log('✅ Connected to MongoDB');
     await seed();
   })
-  .catch(err => {
-    console.warn('⚠️ MongoDB connection issue. Operating in High-Availability Bypass Mode.');
-  });
+  .catch(() => console.warn('⚠️ Database connection issue.'));
 
 const seed = async () => {
-  try {
-    const userCount = await User.countDocuments();
-    if (userCount === 0) {
-      const usersToSeed = [
-        { username: 'admin', password: 'password123', name: 'Master Admin', role: 'Super Admin', email: 'abbasminahil1@gmail.com' },
-        { username: 'staff_admin', password: 'password123', name: 'Office Admin', role: 'Admin', email: 'admin@healsync.com' },
-        { username: 'doctor', password: 'password123', name: 'Dr. Sarah Wilson', role: 'Doctor', email: 'sarah@healsync.com' },
-        { username: 'nurse', password: 'password123', name: 'Nurse Joy', role: 'Nurse', email: 'joy@healsync.com' },
-        { username: 'lab_tech', password: 'password123', name: 'Mark Tech', role: 'Lab Technician', email: 'mark@healsync.com' },
-        { username: 'radiologist', password: 'password123', name: 'Dr. Ray X', role: 'Radiologist', email: 'ray@healsync.com' },
-        { username: 'pharmacist', password: 'password123', name: 'Pharma Phil', role: 'Pharmacist', email: 'phil@healsync.com' },
-        { username: 'receptionist', password: 'password123', name: 'Alice Front', role: 'Receptionist', email: 'alice@healsync.com' },
-        { username: 'accountant', password: 'password123', name: 'Money Mike', role: 'Accountant', email: 'mike@healsync.com' },
-        { username: 'patient', password: 'password123', name: 'John Doe', role: 'Patient', email: 'john@gmail.com' }
-      ];
-      await User.insertMany(usersToSeed);
-      console.log('👤 Seeded all role-based accounts');
-    }
-  } catch (err) {
-    console.warn('Seed error:', err.message);
+  if (await User.countDocuments() === 0) {
+    await User.insertMany([
+      { username: 'admin', password: 'password123', name: 'Master Admin', role: 'Super Admin', email: 'abbasminahil1@gmail.com' },
+      { username: 'receptionist', password: 'password123', name: 'Alice Front', role: 'Receptionist', email: 'alice@healsync.com' },
+      { username: 'doctor', password: 'password123', name: 'Dr. Sarah Wilson', role: 'Doctor', email: 'sarah@healsync.com' },
+      { username: 'lab_tech', password: 'password123', name: 'Mark Tech', role: 'Lab Technician', email: 'mark@healsync.com' },
+      { username: 'radiologist', password: 'password123', name: 'Dr. Ray X', role: 'Radiologist', email: 'ray@healsync.com' },
+      { username: 'pharmacist', password: 'password123', name: 'Pharma Phil', role: 'Pharmacist', email: 'phil@healsync.com' }
+    ]);
+    console.log('👤 Seeded administrative roles');
   }
-};
-
-// --- AUTH HELPERS ---
-const generateToken = (user) => {
-  const userId = user._id ? user._id.toString() : (user.id || 'anonymous');
-  return jwt.sign({
-    id: userId,
-    role: user.role,
-    name: user.name,
-    email: user.email
-  }, SECRET, { expiresIn: '12h' });
+  if (await Settings.countDocuments() === 0) {
+    await Settings.create({ name: 'HealSync General Hospital', tagline: 'Excellence in Clinical Care' });
+  }
 };
 
 // --- MIDDLEWARE ---
 const authenticate = (req, res, next) => {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Authentication required.' });
-  }
-
-  const token = authHeader.split(' ')[1];
+  if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ message: 'Auth required' });
   try {
-    const decoded = jwt.verify(token, SECRET);
-    req.user = decoded;
+    req.user = jwt.verify(authHeader.split(' ')[1], SECRET);
     next();
-  } catch (err) {
-    return res.status(403).json({ message: 'Invalid session.' });
-  }
+  } catch (err) { res.status(403).json({ message: 'Invalid session' }); }
 };
 
 // --- ROUTES ---
-
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
-  
-  const bypassUsers = {
-    'admin': { id: 'b1', name: 'Master Admin', role: 'Super Admin', email: 'abbasminahil1@gmail.com' },
-    'staff_admin': { id: 'b2', name: 'Office Admin', role: 'Admin', email: 'admin@healsync.com' },
-    'doctor': { id: 'b3', name: 'Dr. Sarah Wilson', role: 'Doctor', email: 'sarah@healsync.com' },
-    'nurse': { id: 'b4', name: 'Nurse Joy', role: 'Nurse', email: 'joy@healsync.com' },
-    'lab_tech': { id: 'b5', name: 'Mark Tech', role: 'Lab Technician', email: 'mark@healsync.com' },
-    'radiologist': { id: 'b6', name: 'Dr. Ray X', role: 'Radiologist', email: 'ray@healsync.com' },
-    'pharmacist': { id: 'b7', name: 'Pharma Phil', role: 'Pharmacist', email: 'phil@healsync.com' },
-    'receptionist': { id: 'b8', name: 'Alice Front', role: 'Receptionist', email: 'alice@healsync.com' },
-    'accountant': { id: 'b9', name: 'Money Mike', role: 'Accountant', email: 'mike@healsync.com' },
-    'patient': { id: 'b10', name: 'John Doe', role: 'Patient', email: 'john@gmail.com' }
-  };
-
-  if (bypassUsers[username] && password === 'password123') {
-    const user = bypassUsers[username];
-    const token = generateToken(user);
-    return res.json({ user, token });
-  }
-
-  try {
-    if (!isDbConnected) {
-      return res.status(503).json({ message: 'Database offline. Use demo credentials.' });
-    }
-
-    const user = await User.findOne({ username, password }).lean();
-    if (user) {
-      const userRes = { ...user, id: user._id.toString() };
-      delete userRes._id; delete userRes.password; delete userRes.__v;
-      res.json({ user: userRes, token: generateToken(userRes) });
-    } else {
-      res.status(401).json({ message: 'Invalid Credentials.' });
-    }
-  } catch (err) {
-    res.status(500).json({ message: 'Login service error.' });
-  }
-});
-
-app.post('/api/users/invite', authenticate, async (req, res) => {
-  const { email, role } = req.body;
-  if (!email || !role) return res.status(400).json({ message: 'Email and Role are required.' });
-  try {
-    if (isDbConnected) await Invitation.create({ email, role });
-    res.json({ message: 'Invitation sent successfully.' });
-  } catch (err) {
-    res.status(500).json({ message: 'Failed to send invitation.' });
-  }
-});
-
-app.get('/api/emails', authenticate, async (req, res) => {
-  try {
-    if (isDbConnected) {
-      const emails = await Email.find({ 
-        $or: [{ senderEmail: req.user.email }, { recipientEmail: req.user.email }] 
-      }).sort({ timestamp: -1 });
-      res.json(emails);
-    } else res.json([]);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch emails' });
-  }
-});
-
-app.post('/api/emails/send', authenticate, async (req, res) => {
-  try {
-    const emailData = { ...req.body, senderEmail: req.user.email, direction: 'Outgoing', status: 'Sent' };
-    if (isDbConnected) {
-      const newEmail = await Email.create(emailData);
-      res.json(newEmail);
-    } else res.json({ ...emailData, id: 'temp-' + Date.now() });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to send email' });
-  }
+  const user = await User.findOne({ username, password }).lean();
+  if (user) {
+    const token = jwt.sign({ id: user._id, role: user.role, name: user.name, email: user.email }, SECRET, { expiresIn: '12h' });
+    res.json({ user, token });
+  } else res.status(401).json({ message: 'Access Denied' });
 });
 
 app.get('/api/init-dashboard', authenticate, async (req, res) => {
+  const [stats, doctors, emergencyCases] = await Promise.all([
+    Patient.countDocuments(), Doctor.find(), EmergencyCase.find({ status: 'Active' })
+  ]);
   res.json({
-    stats: { dailyAppointments: 12, opdPatients: 45, ipdPatients: 12, emergencyCases: 2, totalRevenue: 12450, doctorsOnDuty: 8 },
-    revenue: [
-      { date: '2024-05-18', amount: 5100, category: 'Pharmacy' },
-      { date: '2024-05-19', amount: 3200, category: 'OPD' },
-      { date: '2024-05-20', amount: 4150, category: 'IPD' }
-    ],
-    doctors: [],
-    emergencyCases: []
+    stats: { dailyAppointments: 12, opdPatients: 45, ipdPatients: 12, emergencyCases: emergencyCases.length, totalRevenue: 12450, doctorsOnDuty: 8 },
+    revenue: [{ date: '2024-05-20', amount: 4150, category: 'IPD' }],
+    doctors, emergencyCases
   });
 });
+
+// Patients
+app.get('/api/patients', authenticate, async (req, res) => res.json(await Patient.find()));
+app.post('/api/patients', authenticate, async (req, res) => res.json(await Patient.create(req.body)));
+app.patch('/api/patients/:id', authenticate, async (req, res) => res.json(await Patient.findByIdAndUpdate(req.params.id, req.body, { new: true })));
+app.post('/api/patients/:id/ehr', authenticate, async (req, res) => {
+  const p = await Patient.findById(req.params.id);
+  p.medicalHistory.push({ ...req.body, id: Date.now().toString() });
+  await p.save();
+  res.json(p);
+});
+
+// Doctors
+app.get('/api/doctors', authenticate, async (req, res) => res.json(await Doctor.find()));
+app.post('/api/doctors', authenticate, async (req, res) => res.json(await Doctor.create(req.body)));
+app.patch('/api/doctors/:id/status', authenticate, async (req, res) => res.json(await Doctor.findByIdAndUpdate(req.params.id, { status: req.body.status }, { new: true })));
+
+// Appointments
+app.get('/api/appointments', authenticate, async (req, res) => res.json(await Appointment.find()));
+app.post('/api/appointments', authenticate, async (req, res) => res.json(await Appointment.create(req.body)));
+
+// Billing
+app.get('/api/invoices', authenticate, async (req, res) => res.json(await Invoice.find()));
+app.post('/api/invoices', authenticate, async (req, res) => {
+  const inv = req.body;
+  inv.tax = inv.amount * 0.1;
+  inv.total = inv.amount + inv.tax - (inv.discount || 0);
+  res.json(await Invoice.create(inv));
+});
+
+// Pharmacy
+app.get('/api/pharmacy/inventory', authenticate, async (req, res) => res.json(await PharmacyItem.find()));
+app.post('/api/pharmacy/inventory', authenticate, async (req, res) => res.json(await PharmacyItem.create(req.body)));
+
+// Lab & Radio
+app.get('/api/lab/samples', authenticate, async (req, res) => res.json(await LabSample.find()));
+app.get('/api/radiology/orders', authenticate, async (req, res) => res.json(await RadiologyOrder.find()));
+
+// Emergency
+app.get('/api/emergency/cases', authenticate, async (req, res) => res.json(await EmergencyCase.find()));
+app.post('/api/emergency/cases', authenticate, async (req, res) => res.json(await EmergencyCase.create({ ...req.body, timestamp: new Date().toLocaleString() })));
+
+// Settings
+app.get('/api/settings/hospital', authenticate, async (req, res) => res.json(await Settings.findOne()));
+app.patch('/api/settings/hospital', authenticate, async (req, res) => res.json(await Settings.findOneAndUpdate({}, req.body, { new: true })));
 
 app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Clinical API active on http://127.0.0.1:${PORT}`));
