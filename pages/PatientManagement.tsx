@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../services/apiService';
-import { Patient, PatientStatus, EHRRecord, Prescription } from '../types';
+import { Patient, PatientStatus, EHRRecord, Prescription, UserRole } from '../types';
 import { Icons } from '../constants';
 
 const PatientManagement: React.FC = () => {
@@ -12,6 +12,11 @@ const PatientManagement: React.FC = () => {
   const [showEHRModal, setShowEHRModal] = useState(false);
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
   const [viewTab, setViewTab] = useState<'ehr' | 'prescriptions' | 'discharge'>('ehr');
+
+  // Role Detection
+  const userString = localStorage.getItem('his_user');
+  const currentUser = userString ? JSON.parse(userString) : null;
+  const isNurse = currentUser?.role === UserRole.NURSE;
 
   // Form States
   const [newPatient, setNewPatient] = useState<Partial<Patient>>({
@@ -31,6 +36,7 @@ const PatientManagement: React.FC = () => {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isNurse) return; // Logic guard
     await apiService.registerPatient(newPatient);
     setShowRegModal(false);
     setNewPatient({ name: '', age: 0, gender: 'Male', status: PatientStatus.OPD, diagnosis: '' });
@@ -109,13 +115,15 @@ const PatientManagement: React.FC = () => {
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Patient Management</h1>
           <p className="text-sm text-slate-500">Registry, EHR Monitoring, and clinical documentation.</p>
         </div>
-        <button 
-          onClick={() => setShowRegModal(true)}
-          className="bg-sky-600 text-white px-5 py-2.5 rounded-xl font-semibold shadow-lg shadow-sky-100 hover:bg-sky-700 transition-all flex items-center"
-        >
-          <Icons.Users className="w-5 h-5 mr-2" />
-          Register Patient
-        </button>
+        {!isNurse && (
+          <button 
+            onClick={() => setShowRegModal(true)}
+            className="bg-sky-600 text-white px-5 py-2.5 rounded-xl font-semibold shadow-lg shadow-sky-100 hover:bg-sky-700 transition-all flex items-center"
+          >
+            <Icons.Users className="w-5 h-5 mr-2" />
+            Register Patient
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -305,7 +313,7 @@ const PatientManagement: React.FC = () => {
       </div>
 
       {/* Registration Modal */}
-      {showRegModal && (
+      {showRegModal && !isNurse && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-100 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
             <div className="p-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
