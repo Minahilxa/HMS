@@ -10,6 +10,9 @@ const DoctorManagement: React.FC = () => {
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [performance, setPerformance] = useState<DoctorPerformance[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  const [showDoctorModal, setShowDoctorModal] = useState(false);
+  const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
 
   useEffect(() => {
     loadData();
@@ -35,6 +38,35 @@ const DoctorManagement: React.FC = () => {
     }
   };
 
+  const handleDoctorSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const doctorData = {
+      name: formData.get('name') as string,
+      specialization: formData.get('specialization') as string,
+      department: formData.get('department') as string,
+      room: formData.get('room') as string,
+      experience: formData.get('experience') as string,
+      publicBio: formData.get('publicBio') as string,
+      displayOnWeb: formData.get('displayOnWeb') === 'on'
+    };
+
+    if (editingDoctor) {
+      await apiService.updateDoctor(editingDoctor.id, doctorData);
+    } else {
+      await apiService.createDoctor(doctorData);
+    }
+
+    setShowDoctorModal(false);
+    setEditingDoctor(null);
+    loadData();
+  };
+
+  const openEditModal = (doctor: Doctor) => {
+    setEditingDoctor(doctor);
+    setShowDoctorModal(true);
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
@@ -53,6 +85,7 @@ const DoctorManagement: React.FC = () => {
         </div>
         <div className="flex p-1 bg-slate-100 rounded-xl">
           <button 
+            // Fix: Changed setActiveTab to setActiveSubTab
             onClick={() => setActiveSubTab('profiles')}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeSubTab === 'profiles' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
           >Profiles</button>
@@ -79,7 +112,7 @@ const DoctorManagement: React.FC = () => {
                 <div className="w-14 h-14 rounded-2xl bg-sky-50 flex items-center justify-center text-sky-600 font-bold text-xl">
                   {doctor.name.split(' ').map(n => n[0]).join('')}
                 </div>
-                <button className="p-2 text-slate-400 hover:text-sky-600 transition-colors">
+                <button onClick={() => openEditModal(doctor)} className="p-2 text-slate-400 hover:text-sky-600 transition-colors">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </button>
               </div>
@@ -101,7 +134,10 @@ const DoctorManagement: React.FC = () => {
               </div>
             </div>
           ))}
-          <div className="border-2 border-dashed border-slate-200 rounded-3xl p-6 flex flex-col items-center justify-center text-slate-400 hover:border-sky-300 hover:text-sky-400 transition-all cursor-pointer">
+          <div 
+            onClick={() => { setEditingDoctor(null); setShowDoctorModal(true); }}
+            className="border-2 border-dashed border-slate-200 rounded-3xl p-6 flex flex-col items-center justify-center text-slate-400 hover:border-sky-300 hover:text-sky-400 transition-all cursor-pointer"
+          >
             <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/></svg>
             <span className="font-bold text-sm">Add New Doctor</span>
           </div>
@@ -142,22 +178,29 @@ const DoctorManagement: React.FC = () => {
                           <button 
                             onClick={() => handleLeaveAction(leave.id, 'Approved')}
                             className="bg-green-500 text-white p-1.5 rounded-lg hover:bg-green-600 transition-colors"
+                            title="Approve Leave"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"/></svg>
                           </button>
                           <button 
                             onClick={() => handleLeaveAction(leave.id, 'Rejected')}
                             className="bg-red-500 text-white p-1.5 rounded-lg hover:bg-red-600 transition-colors"
+                            title="Reject Leave"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"/></svg>
                           </button>
                         </>
                       )}
-                      {leave.status !== 'Pending' && <span className="text-xs text-slate-400 italic">No actions</span>}
+                      {leave.status !== 'Pending' && <span className="text-xs text-slate-400 italic">No actions available</span>}
                     </div>
                   </td>
                 </tr>
               ))}
+              {leaves.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="p-10 text-center text-slate-400 italic">No leave requests found.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -165,7 +208,7 @@ const DoctorManagement: React.FC = () => {
 
       {activeSubTab === 'schedules' && (
         <div className="grid grid-cols-1 gap-6">
-          {doctors.filter(d => d.schedules).map(doctor => (
+          {doctors.map(doctor => (
             <div key={doctor.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
               <div className="flex items-center mb-6">
                  <div className="w-10 h-10 rounded-full bg-sky-100 flex items-center justify-center text-sky-600 font-bold mr-3">{doctor.name[4]}</div>
@@ -211,7 +254,7 @@ const DoctorManagement: React.FC = () => {
                         <span className="font-bold text-slate-800">{perf.patientsSeen}</span>
                       </div>
                       <div className="h-1.5 w-full bg-slate-100 rounded-full">
-                        <div className="h-full bg-sky-500 rounded-full" style={{width: '75%'}}></div>
+                        <div className="h-full bg-sky-500 rounded-full" style={{width: `${Math.min(100, (perf.patientsSeen / 500) * 100)}%`}}></div>
                       </div>
                     </div>
                     <div>
@@ -234,6 +277,66 @@ const DoctorManagement: React.FC = () => {
                </div>
              );
            })}
+           {performance.length === 0 && (
+             <div className="col-span-3 text-center py-20 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+               <p className="text-slate-400 italic">No performance data available yet.</p>
+             </div>
+           )}
+        </div>
+      )}
+
+      {/* Doctor Add/Edit Modal */}
+      {showDoctorModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+             <div className="p-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                <h3 className="text-xl font-bold text-slate-800">{editingDoctor ? 'Edit' : 'Add New'} Doctor Profile</h3>
+                <button onClick={() => { setShowDoctorModal(false); setEditingDoctor(null); }} className="text-slate-400 hover:text-slate-600 font-bold text-2xl">&times;</button>
+             </div>
+             <form onSubmit={handleDoctorSubmit} className="p-8 space-y-4 max-h-[80vh] overflow-y-auto">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Full Name</label>
+                  <input name="name" defaultValue={editingDoctor?.name} required className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none" placeholder="e.g. Dr. Robert House" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Specialization</label>
+                    <input name="specialization" defaultValue={editingDoctor?.specialization} required className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none" placeholder="e.g. Pediatrics" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Department</label>
+                    <select name="department" defaultValue={editingDoctor?.department} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none">
+                       <option>Cardiology</option>
+                       <option>Neurology</option>
+                       <option>Pediatrics</option>
+                       <option>Orthopedics</option>
+                       <option>General Medicine</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Consultation Room</label>
+                    <input name="room" defaultValue={editingDoctor?.room} required className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none" placeholder="e.g. Room 102" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Experience (Years)</label>
+                    <input name="experience" defaultValue={editingDoctor?.experience} required className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none" placeholder="e.g. 5 Years" />
+                  </div>
+                </div>
+                <div>
+                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Public Biography (for Website)</label>
+                   <textarea name="publicBio" defaultValue={editingDoctor?.publicBio} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none h-24 resize-none" placeholder="Brief professional intro..." />
+                </div>
+                <div className="flex items-center gap-3 py-2">
+                   <input type="checkbox" name="displayOnWeb" id="displayOnWeb" defaultChecked={editingDoctor?.displayOnWeb} className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500" />
+                   <label htmlFor="displayOnWeb" className="text-sm font-medium text-slate-700">Display this profile on the public hospital website</label>
+                </div>
+                <button type="submit" className="w-full bg-sky-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-sky-700 transition-all mt-4 uppercase tracking-widest text-xs">
+                  {editingDoctor ? 'Update Profile' : 'Register Clinician'}
+                </button>
+             </form>
+          </div>
         </div>
       )}
     </div>

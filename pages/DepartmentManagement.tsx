@@ -10,8 +10,12 @@ const DepartmentManagement: React.FC = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'depts' | 'services'>('depts');
+  
+  // Modals
   const [showDeptModal, setShowDeptModal] = useState(false);
+  const [showServiceModal, setShowServiceModal] = useState(false);
   const [editingDept, setEditingDept] = useState<HospitalDepartment | null>(null);
+  const [editingService, setEditingService] = useState<HospitalService | null>(null);
 
   useEffect(() => {
     loadData();
@@ -33,14 +37,16 @@ const DepartmentManagement: React.FC = () => {
   const handleDeptSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const name = formData.get('name') as string;
-    const description = formData.get('description') as string;
-    const headDoctorId = formData.get('headDoctorId') as string;
+    const deptData = {
+      name: formData.get('name') as string,
+      description: formData.get('description') as string,
+      headDoctorId: formData.get('headDoctorId') as string,
+    };
 
     if (editingDept) {
-      await apiService.updateDepartment(editingDept.id, { name, description, headDoctorId });
+      await apiService.updateDepartment(editingDept.id, deptData);
     } else {
-      await apiService.createDepartment({ name, description, headDoctorId });
+      await apiService.createDepartment(deptData);
     }
     
     setShowDeptModal(false);
@@ -48,9 +54,37 @@ const DepartmentManagement: React.FC = () => {
     loadData();
   };
 
+  const handleServiceSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const serviceData = {
+      name: formData.get('name') as string,
+      description: formData.get('description') as string,
+      category: formData.get('category') as any,
+      cost: parseFloat(formData.get('cost') as string) || 0,
+    };
+
+    if (editingService) {
+      await apiService.updateService(editingService.id, serviceData);
+    } else {
+      await apiService.createService(serviceData);
+    }
+
+    setShowServiceModal(false);
+    setEditingService(null);
+    loadData();
+  };
+
   const toggleServiceStatus = async (serviceId: string, current: boolean) => {
     await apiService.updateService(serviceId, { isAvailable: !current });
     loadData();
+  };
+
+  const handleDeleteService = async (id: string) => {
+    if (confirm("Permanently delete this service offering?")) {
+      await apiService.deleteService(id);
+      loadData();
+    }
   };
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-sky-600"></div></div>;
@@ -64,9 +98,17 @@ const DepartmentManagement: React.FC = () => {
         </div>
         <div className="flex gap-3">
            <div className="flex p-1 bg-slate-100 rounded-2xl">
-              <button onClick={() => setActiveTab('depts')} className={`px-5 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'depts' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500'}`}>Departments</button>
-              <button onClick={() => setActiveTab('services')} className={`px-5 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'services' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500'}`}>Services & Facilities</button>
+              <button onClick={() => setActiveTab('depts')} className={`px-5 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'depts' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Departments</button>
+              <button onClick={() => setActiveTab('services')} className={`px-5 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'services' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Services & Facilities</button>
            </div>
+           {activeTab === 'services' && (
+             <button 
+                onClick={() => { setEditingService(null); setShowServiceModal(true); }}
+                className="bg-sky-600 text-white px-5 py-2 rounded-xl text-xs font-bold shadow-lg shadow-sky-100 hover:bg-sky-700 transition-all flex items-center"
+             >
+                <Icons.Bolt className="w-4 h-4 mr-2" /> Add Service
+             </button>
+           )}
         </div>
       </div>
 
@@ -81,7 +123,7 @@ const DepartmentManagement: React.FC = () => {
                       <Icons.Hospital className="w-8 h-8" />
                    </div>
                    <div className="flex gap-2">
-                      <button onClick={() => { setEditingDept(dept); setShowDeptModal(true); }} className="p-2 text-slate-400 hover:text-sky-600"><Icons.Dashboard className="w-5 h-5" /></button>
+                      <button onClick={() => { setEditingDept(dept); setShowDeptModal(true); }} className="p-2 text-slate-400 hover:text-sky-600 transition-colors"><Icons.Cog6Tooth className="w-5 h-5" /></button>
                       <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${dept.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{dept.status}</span>
                    </div>
                 </div>
@@ -90,7 +132,7 @@ const DepartmentManagement: React.FC = () => {
                 <div className="pt-6 border-t border-slate-50 flex justify-between items-center">
                    <div className="flex items-center">
                       <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600 mr-2 border-2 border-white shadow-sm">
-                         {headDoc?.name[4]}
+                         {headDoc?.name ? headDoc.name[4] : '?'}
                       </div>
                       <div className="text-left">
                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Head Physician</p>
@@ -127,7 +169,7 @@ const DepartmentManagement: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-50">
                  {services.map(service => (
-                    <tr key={service.id} className="hover:bg-slate-50/50 transition-colors">
+                    <tr key={service.id} className="hover:bg-slate-50/50 transition-colors group">
                        <td className="px-6 py-4">
                           <p className="font-bold text-slate-800">{service.name}</p>
                           <p className="text-xs text-slate-400">{service.description}</p>
@@ -135,29 +177,47 @@ const DepartmentManagement: React.FC = () => {
                        <td className="px-6 py-4">
                           <span className="bg-slate-100 px-3 py-1 rounded-full text-[10px] font-bold text-slate-600 uppercase tracking-tighter">{service.category}</span>
                        </td>
-                       <td className="px-6 py-4 font-bold text-sky-600">${service.cost}</td>
+                       <td className="px-6 py-4 font-bold text-sky-600">${service.cost.toLocaleString()}</td>
                        <td className="px-6 py-4">
                           <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${service.isAvailable ? 'text-green-600 bg-green-50' : 'text-red-500 bg-red-50'}`}>
                              {service.isAvailable ? 'Available' : 'Disabled'}
                           </span>
                        </td>
                        <td className="px-6 py-4">
-                          <div className="flex justify-center">
+                          <div className="flex justify-center gap-2">
                              <button 
                                 onClick={() => toggleServiceStatus(service.id, service.isAvailable)}
-                                className={`px-4 py-1.5 rounded-xl text-[10px] font-bold transition-all ${service.isAvailable ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}
+                                className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ${service.isAvailable ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}
                              >
                                 {service.isAvailable ? 'Disable' : 'Enable'}
+                             </button>
+                             <button 
+                                onClick={() => { setEditingService(service); setShowServiceModal(true); }}
+                                className="p-2 text-slate-400 hover:text-sky-600 opacity-0 group-hover:opacity-100 transition-all"
+                             >
+                                <Icons.Cog6Tooth className="w-4 h-4" />
+                             </button>
+                             <button 
+                                onClick={() => handleDeleteService(service.id)}
+                                className="p-2 text-slate-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all"
+                             >
+                                <Icons.Logout className="w-4 h-4" />
                              </button>
                           </div>
                        </td>
                     </tr>
                  ))}
+                 {services.length === 0 && (
+                   <tr>
+                     <td colSpan={5} className="p-10 text-center text-slate-400 italic">No services registered yet. Click 'Add Service' to begin.</td>
+                   </tr>
+                 )}
               </tbody>
            </table>
         </div>
       )}
 
+      {/* Department Modal */}
       {showDeptModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
@@ -181,8 +241,48 @@ const DepartmentManagement: React.FC = () => {
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Description</label>
                   <textarea name="description" defaultValue={editingDept?.description} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none h-24 resize-none" />
                 </div>
-                <button type="submit" className="w-full bg-slate-800 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-slate-900 transition-all">
+                <button type="submit" className="w-full bg-slate-800 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-slate-900 transition-all uppercase tracking-widest text-xs">
                   {editingDept ? 'Update Details' : 'Initialize Department'}
+                </button>
+             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Service Modal */}
+      {showServiceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+             <div className="p-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                <h3 className="text-xl font-bold text-slate-800">{editingService ? 'Edit' : 'New'} Facility Service</h3>
+                <button onClick={() => setShowServiceModal(false)} className="text-slate-400 hover:text-slate-600 font-bold text-2xl">&times;</button>
+             </div>
+             <form onSubmit={handleServiceSubmit} className="p-8 space-y-6">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Service Name</label>
+                  <input name="name" defaultValue={editingService?.name} required className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none" placeholder="e.g. Laser Surgery" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Category</label>
+                    <select name="category" defaultValue={editingService?.category || 'Diagnostic'} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none">
+                       <option>Diagnostic</option>
+                       <option>Therapeutic</option>
+                       <option>Emergency</option>
+                       <option>Surgery</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Unit Cost ($)</label>
+                    <input name="cost" type="number" step="0.01" defaultValue={editingService?.cost} required className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Detailed Description</label>
+                  <textarea name="description" defaultValue={editingService?.description} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none h-24 resize-none" placeholder="Explain the service scope..." />
+                </div>
+                <button type="submit" className="w-full bg-sky-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-sky-700 transition-all uppercase tracking-widest text-xs">
+                  {editingService ? 'Update Service' : 'Activate Service'}
                 </button>
              </form>
           </div>
