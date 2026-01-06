@@ -188,24 +188,24 @@ class ApiService {
   
   // --- EMERGENCY CRUD ---
   async getEmergencyNumbers(): Promise<EmergencyNumber[]> { return this.getDB(DB_KEYS.EMERGENCY_NUMS); }
-  async createEmergencyNumber(d: Partial<EmergencyNumber>) { return this.create(DB_KEYS.EMERGENCY_NUMS, d, 'EN'); }
+  async createEmergencyNumber(d: Partial<EmergencyNumber>): Promise<EmergencyNumber> { return this.create<EmergencyNumber>(DB_KEYS.EMERGENCY_NUMS, d, 'EN'); }
   async updateEmergencyNumber(id: string, d: Partial<EmergencyNumber>) { return this.update(DB_KEYS.EMERGENCY_NUMS, id, d); }
   async deleteEmergencyNumber(id: string) { return this.remove(DB_KEYS.EMERGENCY_NUMS, id); }
 
   async getEmergencyCases(): Promise<EmergencyCase[]> { return this.getDB(DB_KEYS.EMERGENCY_CASES); }
-  async createEmergencyCase(d: Partial<EmergencyCase>) { return this.create(DB_KEYS.EMERGENCY_CASES, { ...d, timestamp: new Date().toLocaleString() }, 'EC'); }
+  async createEmergencyCase(d: Partial<EmergencyCase>): Promise<EmergencyCase> { return this.create<EmergencyCase>(DB_KEYS.EMERGENCY_CASES, { ...d, timestamp: new Date().toLocaleString() }, 'EC'); }
   async updateEmergencyCase(id: string, d: Partial<EmergencyCase>) { return this.update(DB_KEYS.EMERGENCY_CASES, id, d); }
   async deleteEmergencyCase(id: string) { return this.remove(DB_KEYS.EMERGENCY_CASES, id); }
 
   // --- PAYMENTS CRUD ---
   async getPaymentGateways(): Promise<PaymentGateway[]> { return this.getDB(DB_KEYS.PAYMENTS); }
-  async createPaymentGateway(d: Partial<PaymentGateway>) { return this.create(DB_KEYS.PAYMENTS, d, 'GW'); }
+  async createPaymentGateway(d: Partial<PaymentGateway>): Promise<PaymentGateway> { return this.create<PaymentGateway>(DB_KEYS.PAYMENTS, d, 'GW'); }
   async updatePaymentGateway(id: string, d: Partial<PaymentGateway>) { return this.update(DB_KEYS.PAYMENTS, id, d); }
   async deletePaymentGateway(id: string) { return this.remove(DB_KEYS.PAYMENTS, id); }
 
   // --- SECURITY CRUD ---
   async getSecuritySettings(): Promise<SecuritySetting[]> { return this.getDB(DB_KEYS.SECURITY); }
-  async createSecuritySetting(d: Partial<SecuritySetting>) { return this.create(DB_KEYS.SECURITY, d, 'SEC'); }
+  async createSecuritySetting(d: Partial<SecuritySetting>): Promise<SecuritySetting> { return this.create<SecuritySetting>(DB_KEYS.SECURITY, d, 'SEC'); }
   async updateSecuritySetting(id: string, d: Partial<SecuritySetting>) { return this.update(DB_KEYS.SECURITY, id, d); }
   async deleteSecuritySetting(id: string) { return this.remove(DB_KEYS.SECURITY, id); }
   async toggleSecuritySetting(id: string) {
@@ -270,55 +270,55 @@ class ApiService {
   async getCMSBlogs(): Promise<CMSBlog[]> { return this.getDB(DB_KEYS.CMS_BLOGS); }
   async getCMSSliders(): Promise<CMSSlider[]> { return this.getDB(DB_KEYS.CMS_SLIDERS); }
   async getCMSSEO(): Promise<CMSSEOSetting[]> { return this.getDB(DB_KEYS.CMS_SEO); }
-  async createCMSPage(d: any) { return this.create(DB_KEYS.CMS_PAGES, d, 'PG'); }
+  async createCMSPage(d: any): Promise<CMSPage> { return this.create<CMSPage>(DB_KEYS.CMS_PAGES, d, 'PG'); }
   async updateCMSPage(id: string, d: any) { return this.update(DB_KEYS.CMS_PAGES, id, d); }
   async deleteCMSPage(id: string) { return this.remove(DB_KEYS.CMS_PAGES, id); }
-  async createCMSBlog(d: any) { return this.create(DB_KEYS.CMS_BLOGS, d, 'BL'); }
+  async createCMSBlog(d: any): Promise<CMSBlog> { return this.create<CMSBlog>(DB_KEYS.CMS_BLOGS, d, 'BL'); }
   async updateCMSBlog(id: string, d: any) { return this.update(DB_KEYS.CMS_BLOGS, id, d); }
   async deleteCMSBlog(id: string) { return this.remove(DB_KEYS.CMS_BLOGS, id); }
-  async createCMSSlider(d: any) { return this.create(DB_KEYS.CMS_SLIDERS, d, 'SL'); }
+  async createCMSSlider(d: any): Promise<CMSSlider> { return this.create<CMSSlider>(DB_KEYS.CMS_SLIDERS, d, 'SL'); }
   async updateCMSSlider(id: string, d: any) { return this.update(DB_KEYS.CMS_SLIDERS, id, d); }
   async deleteCMSSlider(id: string) { return this.remove(DB_KEYS.CMS_SLIDERS, id); }
-  async createCMSSEO(d: any) { return this.create(DB_KEYS.CMS_SEO, d, 'SEO'); }
+  async createCMSSEO(d: any): Promise<CMSSEOSetting> { return this.create<CMSSEOSetting>(DB_KEYS.CMS_SEO, d, 'SEO'); }
   async updateCMSSEO(id: string, d: any) { return this.update(DB_KEYS.CMS_SEO, id, d); }
   async deleteCMSSEO(id: string) { return this.remove(DB_KEYS.CMS_SEO, id); }
   async updateDoctorCMS(id: string, d: any) { return this.update(DB_KEYS.DOCTORS, id, d); }
 
   async getInternalAnnouncements(): Promise<InternalAnnouncement[]> { return this.getDB(DB_KEYS.ANNOUNCEMENTS); }
-  async createAnnouncement(d: any) { return this.create(DB_KEYS.ANNOUNCEMENTS, d, 'ANN'); }
+  async createAnnouncement(d: any): Promise<InternalAnnouncement> { return this.create<InternalAnnouncement>(DB_KEYS.ANNOUNCEMENTS, d, 'ANN'); }
   async deleteAnnouncement(id: string) { return this.remove(DB_KEYS.ANNOUNCEMENTS, id); }
   async getSMSLogs(): Promise<SMSLog[]> { return this.getDB(DB_KEYS.SMS_LOGS); }
-  async sendSMS(d: any) { return this.create(DB_KEYS.SMS_LOGS, d, 'SMS'); }
+  async sendSMS(d: any): Promise<SMSLog> { return this.create<SMSLog>(DB_KEYS.SMS_LOGS, d, 'SMS'); }
   async getEmailLogs(): Promise<EmailLog[]> { return this.getDB(DB_KEYS.EMAIL_LOGS); }
-  async sendEmail(d: any) { return this.create(DB_KEYS.EMAIL_LOGS, d, 'EML'); }
+  async sendEmail(d: any): Promise<EmailLog> { return this.create<EmailLog>(DB_KEYS.EMAIL_LOGS, d, 'EML'); }
 
   async getInsurancePanels(): Promise<InsurancePanel[]> { return this.getDB(DB_KEYS.INSURANCE_PANELS); }
   async getInsuranceClaims(): Promise<InsuranceClaim[]> { return this.getDB(DB_KEYS.INSURANCE_CLAIMS); }
-  async createInsurancePanel(d: any) { return this.create(DB_KEYS.INSURANCE_PANELS, d, 'PAN'); }
+  async createInsurancePanel(d: any): Promise<InsurancePanel> { return this.create<InsurancePanel>(DB_KEYS.INSURANCE_PANELS, d, 'PAN'); }
   async updateInsurancePanel(id: string, d: any) { return this.update(DB_KEYS.INSURANCE_PANELS, id, d); }
   async deleteInsurancePanel(id: string) { return this.remove(DB_KEYS.INSURANCE_PANELS, id); }
   async updateClaimStatus(id: string, d: any) { return this.update(DB_KEYS.INSURANCE_CLAIMS, id, d); }
   async getPatientCoverage(id: string): Promise<PatientCoverage[]> { return this.getDB<PatientCoverage>(DB_KEYS.PATIENT_COVERAGE).filter((c: any) => c.patientId === id); }
-  async createPatientCoverage(d: any) { return this.create(DB_KEYS.PATIENT_COVERAGE, d, 'COV'); }
+  async createPatientCoverage(d: any): Promise<PatientCoverage> { return this.create<PatientCoverage>(DB_KEYS.PATIENT_COVERAGE, d, 'COV'); }
 
   async getPharmacyInventory(): Promise<PharmacyItem[]> { return this.getDB(DB_KEYS.PHARMACY_INV); }
-  async createPharmacyItem(d: any) { return this.create(DB_KEYS.PHARMACY_INV, d, 'DRG'); }
+  async createPharmacyItem(d: any): Promise<PharmacyItem> { return this.create<PharmacyItem>(DB_KEYS.PHARMACY_INV, d, 'DRG'); }
   async updatePharmacyItem(id: string, d: any) { return this.update(DB_KEYS.PHARMACY_INV, id, d); }
   async deletePharmacyItem(id: string) { return this.remove(DB_KEYS.PHARMACY_INV, id); }
   async getPharmacySales(): Promise<PharmacySale[]> { return this.getDB(DB_KEYS.PHARMACY_SALES); }
-  async createPharmacySale(d: any) { return this.create(DB_KEYS.PHARMACY_SALES, d, 'SL'); }
+  async createPharmacySale(d: any): Promise<PharmacySale> { return this.create<PharmacySale>(DB_KEYS.PHARMACY_SALES, d, 'SL'); }
   async updatePharmacySale(id: string, d: any) { return this.update(DB_KEYS.PHARMACY_SALES, id, d); }
   async deletePharmacySale(id: string) { return this.remove(DB_KEYS.PHARMACY_SALES, id); }
   async getPharmacySuppliers(): Promise<PharmacySupplier[]> { return this.getDB(DB_KEYS.PHARMACY_SUPP); }
-  async createPharmacySupplier(d: any) { return this.create(DB_KEYS.PHARMACY_SUPP, d, 'SUP'); }
+  async createPharmacySupplier(d: any): Promise<PharmacySupplier> { return this.create<PharmacySupplier>(DB_KEYS.PHARMACY_SUPP, d, 'SUP'); }
   async updatePharmacySupplier(id: string, d: any) { return this.update(DB_KEYS.PHARMACY_SUPP, id, d); }
   async deletePharmacySupplier(id: string) { return this.remove(DB_KEYS.PHARMACY_SUPP, id); }
 
   async getLabTests(): Promise<LabTest[]> { return this.getDB(DB_KEYS.LAB_TESTS); }
-  async createRadiologyOrder(d: any) { return this.create(DB_KEYS.RADIO_ORDERS, d, 'RAD'); }
+  async createRadiologyOrder(d: any): Promise<RadiologyOrder> { return this.create<RadiologyOrder>(DB_KEYS.RADIO_ORDERS, d, 'RAD'); }
   async updateRadiologyStatus(id: string, s: string, n?: string) { return this.update(DB_KEYS.RADIO_ORDERS, id, { status: s as any, radiologistNotes: n }); }
   async updateSampleStatus(id: string, s: string, r?: string) { return this.update(DB_KEYS.LAB_SAMPLES, id, { status: s as any, result: r }); }
-  async registerPatient(d: any) { return this.create(DB_KEYS.PATIENTS, d, 'P'); }
+  async registerPatient(d: any): Promise<Patient> { return this.create<Patient>(DB_KEYS.PATIENTS, d, 'P'); }
   async updatePatient(id: string, d: any) { return this.update(DB_KEYS.PATIENTS, id, d); }
   async addEHRRecord(id: string, d: any) { 
     const pts = this.getDB<Patient>(DB_KEYS.PATIENTS);
@@ -340,25 +340,25 @@ class ApiService {
     }
     return false;
   }
-  async createDepartment(d: any) { return this.create(DB_KEYS.DEPARTMENTS, d, 'DEP'); }
+  async createDepartment(d: any): Promise<HospitalDepartment> { return this.create<HospitalDepartment>(DB_KEYS.DEPARTMENTS, d, 'DEP'); }
   async updateDepartment(id: string, d: any) { return this.update(DB_KEYS.DEPARTMENTS, id, d); }
-  async createService(d: any) { return this.create(DB_KEYS.SERVICES, d, 'SRV'); }
+  async createService(d: any): Promise<HospitalService> { return this.create<HospitalService>(DB_KEYS.SERVICES, d, 'SRV'); }
   async updateService(id: string, d: any) { return this.update(DB_KEYS.SERVICES, id, d); }
   async deleteService(id: string) { return this.remove(DB_KEYS.SERVICES, id); }
-  async createDoctor(d: any) { return this.create(DB_KEYS.DOCTORS, d, 'D'); }
+  async createDoctor(d: any): Promise<Doctor> { return this.create<Doctor>(DB_KEYS.DOCTORS, d, 'D'); }
   async updateDoctor(id: string, d: any) { return this.update(DB_KEYS.DOCTORS, id, d); }
   async updateDoctorStatus(id: string, s: string) { return this.update(DB_KEYS.DOCTORS, id, { status: s as any }); }
-  async createAppointment(d: any) { return this.create(DB_KEYS.APPOINTMENTS, d, 'APT'); }
+  async createAppointment(d: any): Promise<Appointment> { return this.create<Appointment>(DB_KEYS.APPOINTMENTS, d, 'APT'); }
   async updateAppointmentStatus(id: string, s: string) { return this.update(DB_KEYS.APPOINTMENTS, id, { status: s as any }); }
-  async createSlot(d: any) { return this.create(DB_KEYS.SLOTS, d, 'SLT'); }
+  async createSlot(d: any): Promise<TimeSlot> { return this.create<TimeSlot>(DB_KEYS.SLOTS, d, 'SLT'); }
   async updateLeaveStatus(id: string, s: string) { return this.update(DB_KEYS.LEAVES, id, { status: s as any }); }
   async updateInvoice(id: string, d: any) { return this.update(DB_KEYS.INVOICES, id, d); }
-  async createInvoice(d: any) { 
+  async createInvoice(d: any): Promise<Invoice> { 
     const items = this.getDB<Invoice>(DB_KEYS.INVOICES);
     const amount = d.amount || 0;
     const tax = amount * 0.1;
     const total = amount + tax - (d.discount || 0);
-    const newInv = { ...d, id: `INV-${Date.now()}`, date: new Date().toISOString().split('T')[0], tax, total, status: 'Unpaid' } as any;
+    const newInv = { ...d, id: `INV-${Date.now()}`, date: new Date().toISOString().split('T')[0], tax, total, status: 'Unpaid' } as Invoice;
     this.saveDB(DB_KEYS.INVOICES, [...items, newInv]);
     return newInv;
   }
