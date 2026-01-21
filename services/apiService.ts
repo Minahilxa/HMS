@@ -1,19 +1,18 @@
 
-import { 
-  DashboardStats, User, Patient, Doctor, Appointment, 
+import { API_BASE, getHeaders, handleResponse } from '../api_config';
+import {
+  DashboardStats, User, Patient, Doctor, Appointment,
   RevenueData, EmergencyCase, UserRole, HospitalDepartment,
-  HospitalService, LabTest, LabSample, RadiologyOrder, 
-  PharmacyItem, PharmacySale, PharmacySupplier, Invoice, 
-  InsurancePanel, InsuranceClaim, PatientCoverage, CMSPage, 
-  CMSBlog, CMSSlider, CMSSEOSetting, LeaveRequest, 
-  DoctorPerformance, InternalAnnouncement, SMSLog, EmailLog, 
-  HospitalSettings, EmergencyNumber, PaymentGateway, BackupLog, 
+  HospitalService, LabTest, LabSample, RadiologyOrder,
+  PharmacyItem, PharmacySale, PharmacySupplier, Invoice,
+  InsurancePanel, InsuranceClaim, PatientCoverage, CMSPage,
+  CMSBlog, CMSSlider, CMSSEOSetting, LeaveRequest,
+  DoctorPerformance, InternalAnnouncement, SMSLog, EmailLog,
+  HospitalSettings, EmergencyNumber, PaymentGateway, BackupLog,
   SecuritySetting, AccessHistory, TimeSlot, CustomReport, PatientGrowthEntry
 } from '../types';
-import { API_BASE, handleResponse, getHeaders } from '../api_config';
 
 class ApiService {
-  // --- AUTHENTICATION ---
   async login(credentials: any): Promise<{ user: User; token: string }> {
     const response = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
@@ -23,7 +22,6 @@ class ApiService {
     return handleResponse(response);
   }
 
-  // --- DASHBOARD & ANALYTICS ---
   async getInitDashboard(): Promise<{ stats: DashboardStats; revenue: RevenueData[]; doctors: Doctor[]; emergencyCases: EmergencyCase[] }> {
     const response = await fetch(`${API_BASE}/init-dashboard`, { headers: getHeaders() });
     return handleResponse(response);
